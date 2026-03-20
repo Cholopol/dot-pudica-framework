@@ -1,0 +1,52 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37027.9 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPudicaFramework", "DotPudicaFramework.csproj", "{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPudica.Core", "addons\dot-pudica\Core\DotPudica.Core.csproj", "{0FF9E962-6720-C3C0-810B-023492839888}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPudica.Godot", "addons\dot-pudica\Godot\DotPudica.Godot.csproj", "{348AA155-5A50-4917-F046-E96F9AA0A75C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotPudica.SourceGenerator", "addons\dot-pudica\SourceGenerator\DotPudica.SourceGenerator.csproj", "{4CC679B5-8A73-60FD-1C77-C7A4306A708A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{0786DD5B-0F50-4559-9A0B-3BCCE4C04881}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.ExportDebug|Any CPU.ActiveCfg = Release|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.ExportDebug|Any CPU.Build.0 = Release|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{0FF9E962-6720-C3C0-810B-023492839888}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{348AA155-5A50-4917-F046-E96F9AA0A75C}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.ExportDebug|Any CPU.ActiveCfg = Release|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.ExportDebug|Any CPU.Build.0 = Release|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{4CC679B5-8A73-60FD-1C77-C7A4306A708A}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {49C40680-4CC9-4262-BC56-E273469DC6AF}
+	EndGlobalSection
+EndGlobal

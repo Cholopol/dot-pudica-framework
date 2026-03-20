@@ -1,0 +1,341 @@
+[gd_scene format=3 uid="uid://r802tubbej1u"]
+
+[ext_resource type="Script" uid="uid://bptgu4owy07wn" path="res://DotPudicaSamples/HUD/HudView.cs" id="1_37kl0"]
+[ext_resource type="Script" uid="uid://bp5s7qj0bha1d" path="res://DotPudicaSamples/LoginScreen/LoginView.cs" id="2_login"]
+[ext_resource type="Script" uid="uid://bthaaqq8f6f82" path="res://DotPudicaSamples/SettingsPanel/SettingsPanelView.cs" id="3_settings"]
+[ext_resource type="Script" uid="uid://dcioinctv63ci" path="res://DotPudicaSamples/InventoryMvvmTest/InventoryTestHostView.cs" id="4_inv_host"]
+[ext_resource type="Script" uid="uid://biqutjowccilu" path="res://DotPudicaSamples/InventoryMvvmTest/InventoryPanelViewA.cs" id="5_inv_panel_a"]
+[ext_resource type="Script" uid="uid://bygyxio33qd8" path="res://DotPudicaSamples/InventoryMvvmTest/InventoryPanelViewB.cs" id="6_inv_panel_b"]
+[ext_resource type="Script" uid="uid://bc6jwymkh312u" path="res://DotPudicaSamples/ReflectionProxy/ReflectionProxySampleView.cs" id="7_reflection"]
+
+[node name="Test" type="Control" unique_id=125185700]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HUD" type="Control" parent="." unique_id=2045961323 node_paths=PackedStringArray("_healthBar", "_healthLabel", "_manaBar", "_manaLabel", "_goldLabel")]
+visible = false
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_37kl0")
+_healthBar = NodePath("HealthBar")
+_healthLabel = NodePath("Label")
+_manaBar = NodePath("ManaBar")
+_manaLabel = NodePath("Label2")
+_goldLabel = NodePath("Label3")
+
+[node name="HealthBar" type="ProgressBar" parent="HUD" unique_id=1929246881]
+layout_mode = 0
+offset_left = 64.0
+offset_right = 68.0
+offset_bottom = 27.0
+scale = Vector2(0.91999876, 1)
+fill_mode = 3
+
+[node name="ManaBar" type="ProgressBar" parent="HUD" unique_id=1958791942]
+layout_mode = 0
+offset_left = 64.0
+offset_top = 32.0
+offset_right = 68.0
+offset_bottom = 59.0
+
+[node name="Label" type="Label" parent="HUD" unique_id=2006248093]
+layout_mode = 0
+offset_top = 64.0
+offset_right = 40.0
+offset_bottom = 87.0
+
+[node name="Label2" type="Label" parent="HUD" unique_id=113397859]
+layout_mode = 0
+offset_top = 96.0
+offset_right = 40.0
+offset_bottom = 119.0
+
+[node name="Label3" type="Label" parent="HUD" unique_id=2098106779]
+layout_mode = 0
+offset_top = 128.0
+offset_right = 40.0
+offset_bottom = 151.0
+
+[node name="LoginScreen" type="Control" parent="." unique_id=1300987719 node_paths=PackedStringArray("_usernameInput", "_passwordInput", "_errorLabel", "_loadingBar", "_loginButton")]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -336.0
+offset_top = -258.0
+offset_right = -59.0
+offset_bottom = -25.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_login")
+_usernameInput = NodePath("UsernameInput")
+_passwordInput = NodePath("PasswordInput")
+_errorLabel = NodePath("ErrorLabel")
+_loadingBar = NodePath("LoadingBar")
+_loginButton = NodePath("LoginButton")
+
+[node name="UsernameInput" type="LineEdit" parent="LoginScreen" unique_id=272055007]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 32.0
+offset_right = 245.0
+offset_bottom = 63.0
+placeholder_text = "Username"
+
+[node name="PasswordInput" type="LineEdit" parent="LoginScreen" unique_id=1171082903]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 75.0
+offset_right = 245.0
+offset_bottom = 106.0
+placeholder_text = "Password"
+secret = true
+
+[node name="ErrorLabel" type="Label" parent="LoginScreen" unique_id=1494113053]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 117.0
+offset_right = 245.0
+offset_bottom = 140.0
+theme_override_colors/font_color = Color(1, 0, 0, 1)
+
+[node name="LoadingBar" type="ProgressBar" parent="LoginScreen" unique_id=850781750]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 180.0
+offset_right = 245.0
+offset_bottom = 207.0
+
+[node name="LoginButton" type="Button" parent="LoginScreen" unique_id=617402757]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 144.0
+offset_right = 119.0
+offset_bottom = 175.0
+text = "Login"
+
+[node name="SettingsPanel" type="Control" parent="." unique_id=348669075 node_paths=PackedStringArray("_volumeSlider", "_volumeLabel", "_musicToggle", "_qualityOption", "_saveButton")]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 29.0
+offset_top = -262.0
+offset_right = 301.0
+offset_bottom = 13.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_settings")
+_volumeSlider = NodePath("VolumeSlider")
+_volumeLabel = NodePath("VolumeLabel")
+_musicToggle = NodePath("MusicToggle")
+_qualityOption = NodePath("QualityOption")
+_saveButton = NodePath("SaveButton")
+
+[node name="VolumeSlider" type="HSlider" parent="SettingsPanel" unique_id=368120513]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 32.0
+offset_right = 227.0
+offset_bottom = 48.0
+
+[node name="VolumeLabel" type="Label" parent="SettingsPanel" unique_id=117220461]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 61.0
+offset_right = 146.0
+offset_bottom = 84.0
+text = "Volume: 50%"
+
+[node name="MusicToggle" type="CheckBox" parent="SettingsPanel" unique_id=1457444309]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 96.0
+offset_right = 144.0
+offset_bottom = 127.0
+text = "Music"
+
+[node name="QualityOption" type="OptionButton" parent="SettingsPanel" unique_id=2137901770]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 144.0
+offset_right = 168.0
+offset_bottom = 175.0
+
+[node name="SaveButton" type="Button" parent="SettingsPanel" unique_id=1459845580]
+layout_mode = 0
+offset_left = 32.0
+offset_top = 200.0
+offset_right = 110.0
+offset_bottom = 231.0
+text = "Save"
+
+[node name="InventoryMvvmTest" type="Control" parent="." unique_id=864279259 node_paths=PackedStringArray("_viewA", "_viewB")]
+visible = false
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_inv_host")
+_viewA = NodePath("Columns/ViewA")
+_viewB = NodePath("Columns/ViewB")
+
+[node name="Columns" type="HBoxContainer" parent="InventoryMvvmTest" unique_id=1890816456]
+layout_mode = 1
+offset_right = 1138.0
+offset_bottom = 785.0
+theme_override_constants/separation = 18
+
+[node name="ViewA" type="PanelContainer" parent="InventoryMvvmTest/Columns" unique_id=2120545573 node_paths=PackedStringArray("_cellSizeEditor", "_syncToggle", "_panelTitle", "_cellSizeText", "_gridRoot", "_addButton", "_removeButton")]
+custom_minimum_size = Vector2(560, 780)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("5_inv_panel_a")
+_cellSizeEditor = NodePath("Margin/VBox/Header/CellSize")
+_syncToggle = NodePath("Margin/VBox/Header/SyncToggle")
+_panelTitle = NodePath("Margin/VBox/Header/Title")
+_cellSizeText = NodePath("Margin/VBox/Header/CellSizeText")
+_gridRoot = NodePath("Margin/VBox/GridArea/GridRoot")
+_addButton = NodePath("Margin/VBox/Header/AddButton")
+_removeButton = NodePath("Margin/VBox/Header/RemoveButton")
+
+[node name="Margin" type="MarginContainer" parent="InventoryMvvmTest/Columns/ViewA" unique_id=515751911]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="InventoryMvvmTest/Columns/ViewA/Margin" unique_id=1880325840]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox" unique_id=412232616]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=1194239563]
+layout_mode = 2
+text = "View A"
+
+[node name="CellSize" type="SpinBox" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=91695224]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+min_value = 16.0
+max_value = 96.0
+value = 42.0
+
+[node name="SyncToggle" type="CheckBox" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=2144967350]
+layout_mode = 2
+text = "同步大小"
+
+[node name="CellSizeText" type="Label" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=1952305723]
+layout_mode = 2
+text = "Cell: 42px"
+
+[node name="AddButton" type="Button" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=104742196]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "添加"
+
+[node name="RemoveButton" type="Button" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/Header" unique_id=1710634032]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+disabled = true
+text = "删除"
+
+[node name="GridArea" type="PanelContainer" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox" unique_id=1601584753]
+custom_minimum_size = Vector2(520, 720)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GridRoot" type="Control" parent="InventoryMvvmTest/Columns/ViewA/Margin/VBox/GridArea" unique_id=1465522211]
+layout_mode = 2
+
+[node name="ViewB" type="PanelContainer" parent="InventoryMvvmTest/Columns" unique_id=1471618347 node_paths=PackedStringArray("_cellSizeEditor", "_syncToggle", "_panelTitle", "_cellSizeText", "_gridRoot", "_addButton", "_removeButton")]
+custom_minimum_size = Vector2(560, 780)
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("6_inv_panel_b")
+_cellSizeEditor = NodePath("Margin/VBox/Header/CellSize")
+_syncToggle = NodePath("Margin/VBox/Header/SyncToggle")
+_panelTitle = NodePath("Margin/VBox/Header/Title")
+_cellSizeText = NodePath("Margin/VBox/Header/CellSizeText")
+_gridRoot = NodePath("Margin/VBox/GridArea/GridRoot")
+_addButton = NodePath("Margin/VBox/Header/AddButton")
+_removeButton = NodePath("Margin/VBox/Header/RemoveButton")
+
+[node name="Margin" type="MarginContainer" parent="InventoryMvvmTest/Columns/ViewB" unique_id=431864843]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="InventoryMvvmTest/Columns/ViewB/Margin" unique_id=652990184]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox" unique_id=322700238]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=1252375597]
+layout_mode = 2
+text = "View B"
+
+[node name="CellSize" type="SpinBox" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=1301961658]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+min_value = 16.0
+max_value = 96.0
+value = 30.0
+
+[node name="SyncToggle" type="CheckBox" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=50324035]
+layout_mode = 2
+text = "同步大小"
+
+[node name="CellSizeText" type="Label" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=367005353]
+layout_mode = 2
+text = "Cell: 30px"
+
+[node name="AddButton" type="Button" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=1796514608]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+text = "添加"
+
+[node name="RemoveButton" type="Button" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/Header" unique_id=120703913]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+disabled = true
+text = "删除"
+
+[node name="GridArea" type="PanelContainer" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox" unique_id=1808826223]
+custom_minimum_size = Vector2(520, 720)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GridRoot" type="Control" parent="InventoryMvvmTest/Columns/ViewB/Margin/VBox/GridArea" unique_id=117290079]
+layout_mode = 2
+
+[node name="ReflectionProxySample" type="Control" parent="." unique_id=1631229910]
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 384.0
+offset_bottom = 144.0
+script = ExtResource("7_reflection")

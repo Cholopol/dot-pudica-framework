@@ -1,0 +1,24 @@
+# Godot 4 editor/cache data
+/.godot/
+
+# Godot export/build output
+/android/
+/export/
+/build/
+
+# .NET build artifacts
+**/bin/
+**/obj/
+
+# IDE and local workspace files
+/.vs/
+/.vscode/
+/.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS-generated files
+Thumbs.db
+.DS_Store
