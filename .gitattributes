@@ -14,3 +14,16 @@
 *.ttf binary
 *.otf binary
 *.dll binary
+
+# Keep asset-store/archive exports focused on the sample project and plugin folder.
+.editorconfig export-ignore
+.github export-ignore
+.gitignore export-ignore
+.godot export-ignore
+.vs export-ignore
+DotPudicaFramework.csproj export-ignore
+DotPudicaFramework.sln export-ignore
+LICENSE export-ignore
+project.godot export-ignore
+README.md export-ignore
+README_CN.md export-ignore
