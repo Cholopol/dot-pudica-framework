@@ -4,15 +4,15 @@ namespace DotPudica.Godot.Views;
 
 /// <summary>
 /// Godot window base class. Adds window lifecycle management on top of Control.
-/// Supports the full window state machine: Create -> Show -> Activate -> Passivate -> Hide -> Dismiss.
+/// Supports Create → Show → Activate → Passivate → Hide → Dismiss.
+/// Fine-grained <see cref="WindowState"/> Begin/End markers fire synchronously inside a single
+/// transition callback (no separate sub-animations).
 /// </summary>
 public abstract partial class GodotWindow : Control, IWindow
 {
     private WindowState _state = WindowState.None;
-    private bool _created;
-    private bool _dismissed;
-    private bool _isVisible;
-    private bool _isActivated;
+    private WindowLifecycle _lifecycle = WindowLifecycle.Uncreated;
+    private GodotTransition? _activeTransition;
 
     public event EventHandler? WindowVisibilityChanged;
     public event EventHandler? WindowActivationChanged;
@@ -20,17 +20,29 @@ public abstract partial class GodotWindow : Control, IWindow
     public event EventHandler<WindowStateEventArgs>? StateChanged;
 
     public string WindowName { get; set; } = "";
-    public bool Created => _created;
-    public bool Dismissed => _dismissed;
-    public bool IsWindowVisible => _isVisible;
-    public bool IsWindowActivated => _isActivated;
+    public bool Created => _lifecycle is not WindowLifecycle.Uncreated;
+    public bool Dismissed => _lifecycle is WindowLifecycle.Dismissed;
+    public bool IsWindowVisible => _lifecycle is WindowLifecycle.Visible or WindowLifecycle.Active;
+    public bool IsWindowActivated => _lifecycle is WindowLifecycle.Active;
     public WindowType WindowType { get; set; } = WindowType.Full;
-    public int WindowPriority { get; set; }
     public IWindowManager? WindowManager { get; set; }
 
+    /// <summary>True when allocated from a manager pool: Dismiss recycles the node instead of freeing it.</summary>
+    internal bool IsPooled { get; set; }
+
     /// <summary>
-    /// Current window state.
+    /// Resets lifecycle to Uncreated (no StateChanged events) so the next Show()/Create() drives cleanly.
+    /// _ready re-arming lives in the generated RecycleView (RequestReady).
     /// </summary>
+    internal void ResetForReuse()
+    {
+        _state = WindowState.None;
+        _lifecycle = WindowLifecycle.Uncreated;
+    }
+
+    /// <summary>True while a dismiss transition is in flight (OnStart done, OnEnd not yet).</summary>
+    public bool IsDismissing => State == WindowState.DismissBegin && !Dismissed;
+
     public WindowState State
     {
         get => _state;
@@ -45,38 +57,38 @@ public abstract partial class GodotWindow : Control, IWindow
         }
     }
 
-    /// <summary>
-    /// Create window.
-    /// </summary>
     public void Create(IBundle? bundle = null)
     {
-        if (_created)
+        if (Created)
             return;
 
         State = WindowState.CreateBegin;
         OnCreate(bundle);
-        _created = true;
+        _lifecycle = WindowLifecycle.Hidden;
         State = WindowState.CreateEnd;
     }
 
-    /// <summary>
-    /// Show window.
-    /// </summary>
     public ITransition Show(bool ignoreAnimation = false)
     {
-        if (_dismissed)
+        if (Dismissed)
             throw new InvalidOperationException("Cannot show a dismissed window.");
 
-        if (!_created)
-            Create();
+        if (IsWindowVisible)
+            return CreateCompletedTransition(fadeTarget: 1f);
 
-        var transition = new GodotTransition(this);
+        AbortActiveTransition();
+        if (Dismissed)
+            throw new InvalidOperationException("Cannot show a dismissed window.");
+
+        Create();
+
+        var transition = BeginTransition(fadeTarget: 1f);
 
         transition.OnStart(() =>
         {
             State = WindowState.EnterAnimationBegin;
             Visible = true;
-            _isVisible = true;
+            _lifecycle = WindowLifecycle.Visible;
             WindowVisibilityChanged?.Invoke(this, EventArgs.Empty);
             State = WindowState.Visible;
         });
@@ -85,11 +97,12 @@ public abstract partial class GodotWindow : Control, IWindow
         {
             State = WindowState.EnterAnimationEnd;
             State = WindowState.ActivationAnimationBegin;
-            _isActivated = true;
+            _lifecycle = WindowLifecycle.Active;
             WindowActivationChanged?.Invoke(this, EventArgs.Empty);
             State = WindowState.Activated;
             State = WindowState.ActivationAnimationEnd;
             OnShow();
+            ClearActiveTransition(transition);
         });
 
         if (ignoreAnimation)
@@ -99,17 +112,24 @@ public abstract partial class GodotWindow : Control, IWindow
         return transition;
     }
 
-    /// <summary>
-    /// Hide window.
-    /// </summary>
     public ITransition Hide(bool ignoreAnimation = false)
     {
-        var transition = new GodotTransition(this);
+        if (Dismissed)
+            throw new InvalidOperationException("Cannot hide a dismissed window.");
+
+        if (!IsWindowVisible)
+            return CreateCompletedTransition(fadeTarget: 0f);
+
+        AbortActiveTransition();
+        if (Dismissed)
+            throw new InvalidOperationException("Cannot hide a dismissed window.");
+
+        var transition = BeginTransition(fadeTarget: 0f);
 
         transition.OnStart(() =>
         {
             State = WindowState.PassivationAnimationBegin;
-            _isActivated = false;
+            _lifecycle = WindowLifecycle.Visible;
             WindowActivationChanged?.Invoke(this, EventArgs.Empty);
             State = WindowState.Passivated;
             State = WindowState.PassivationAnimationEnd;
@@ -119,11 +139,12 @@ public abstract partial class GodotWindow : Control, IWindow
         transition.OnEnd(() =>
         {
             Visible = false;
-            _isVisible = false;
+            _lifecycle = WindowLifecycle.Hidden;
             WindowVisibilityChanged?.Invoke(this, EventArgs.Empty);
             State = WindowState.Invisible;
             State = WindowState.ExitAnimationEnd;
             OnHide();
+            ClearActiveTransition(transition);
         });
 
         if (ignoreAnimation)
@@ -134,75 +155,121 @@ public abstract partial class GodotWindow : Control, IWindow
     }
 
     /// <summary>
-    /// Dismiss window.
+    /// Dismiss window. Repeated calls reuse the in-flight transition instead of
+    /// canceling it (which would drop <see cref="WindowDismissed"/>).
     /// </summary>
     public ITransition Dismiss(bool ignoreAnimation = false)
     {
-        var transition = new GodotTransition(this);
+        if (Dismissed)
+            throw new InvalidOperationException("Cannot dismiss a dismissed window.");
+
+        // Already dismissing — do not BeginTransition/Cancel the in-flight OnEnd.
+        if (IsDismissing && _activeTransition is not null)
+        {
+            var active = _activeTransition;
+            if (ignoreAnimation)
+                active.ForceComplete();
+            return active;
+        }
+
+        var wasVisible = IsWindowVisible;
+        var transition = BeginTransition(fadeTarget: 0f);
 
         transition.OnStart(() =>
         {
-            if (_isVisible)
-            {
+            if (wasVisible)
                 State = WindowState.ExitAnimationBegin;
-                Visible = false;
-                _isVisible = false;
-                _isActivated = false;
-                State = WindowState.Invisible;
-                State = WindowState.ExitAnimationEnd;
-            }
 
             State = WindowState.DismissBegin;
         });
 
         transition.OnEnd(() =>
         {
-            _dismissed = true;
+            Visible = false;
+            _lifecycle = WindowLifecycle.Dismissed;
             OnDismiss();
             State = WindowState.DismissEnd;
             WindowDismissed?.Invoke(this, EventArgs.Empty);
-            QueueFree();
+            ClearActiveTransition(transition);
+            if (!IsPooled)
+                QueueFree();
         });
 
-        if (ignoreAnimation)
+        // Already hidden: nothing to fade. Otherwise honor ignoreAnimation.
+        if (!wasVisible || ignoreAnimation)
             transition.DisableAnimation(true);
 
         transition.Execute();
         return transition;
     }
 
-    /// <summary>Called when window is created.</summary>
+    public override void _ExitTree()
+    {
+        _activeTransition?.Cancel();
+        _activeTransition = null;
+
+        if (WindowManager is GodotWindowManager manager)
+            manager.Forget(this);
+
+        base._ExitTree();
+    }
+
+    /// <summary>
+    /// Drop the in-flight transition. A dismiss in progress is ForceCompleted
+    /// (so WindowDismissed still fires); other transitions are canceled.
+    /// </summary>
+    private void AbortActiveTransition()
+    {
+        var active = _activeTransition;
+        if (active is null)
+            return;
+
+        if (IsDismissing)
+            active.ForceComplete();
+        else
+        {
+            active.Cancel();
+            if (ReferenceEquals(_activeTransition, active))
+                _activeTransition = null;
+        }
+    }
+
+    private GodotTransition BeginTransition(float fadeTarget)
+    {
+        AbortActiveTransition();
+        var transition = new GodotTransition(this).FadeTo(fadeTarget);
+        _activeTransition = transition;
+        return transition;
+    }
+
+    private GodotTransition CreateCompletedTransition(float fadeTarget)
+    {
+        var transition = new GodotTransition(this).FadeTo(fadeTarget);
+        transition.DisableAnimation(true);
+        transition.Execute();
+        return transition;
+    }
+
+    private void ClearActiveTransition(GodotTransition transition)
+    {
+        if (ReferenceEquals(_activeTransition, transition))
+            _activeTransition = null;
+    }
+
     protected virtual void OnCreate(IBundle? bundle) { }
 
-    /// <summary>Called after window is shown.</summary>
     protected virtual void OnShow() { }
 
-    /// <summary>Called after window is hidden.</summary>
     protected virtual void OnHide() { }
 
-    /// <summary>Called before window is dismissed.</summary>
     protected virtual void OnDismiss() { }
-}
 
-/// <summary>
-/// Window bundle data implementation.
-/// </summary>
-public class Bundle : IBundle
-{
-    private readonly Dictionary<string, object?> _data = new();
-
-    public T Get<T>(string key)
+    private enum WindowLifecycle
     {
-        if (_data.TryGetValue(key, out var value) && value is T typedValue)
-            return typedValue;
-
-        return default!;
+        Uncreated,
+        Hidden,
+        Visible,
+        Active,
+        Dismissed
     }
-
-    public void Set<T>(string key, T value)
-    {
-        _data[key] = value;
-    }
-
-    public bool ContainsKey(string key) => _data.ContainsKey(key);
 }

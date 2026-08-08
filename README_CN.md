@@ -1,4 +1,4 @@
-# DotPudica Framework - A Data-Driven Framework for Godot .NET
+# DotPudica Framework - A MVVM Framework for Godot .NET
 
 <div align="center">
 
@@ -6,114 +6,262 @@
 
 </div>
 
-![Godot](https://img.shields.io/badge/Godot-4.6+-478CBF?style=flat-square&logo=godotengine&logoColor=white) ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white) ![C#](https://img.shields.io/badge/C%23-12-239120?style=flat-square&logo=csharp&logoColor=white) ![MVVM](https://img.shields.io/badge/Architecture-MVVM-0A7E8C?style=flat-square) ![Source Generator](https://img.shields.io/badge/Roslyn-Source_Generator-CB4B16?style=flat-square) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android%20%7C%20Web-6C757D?style=flat-square) ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square) ![Status](https://img.shields.io/badge/Status-Prototype-orange?style=flat-square) [![Stars](https://img.shields.io/github/stars/Cholopol/dot-pudica-framework?style=flat-square&logo=github&color=yellow)](https://github.com/Cholopol/dot-pudica-framework/stargazers) [![Forks](https://img.shields.io/github/forks/Cholopol/dot-pudica-framework?style=flat-square&logo=github)](https://github.com/Cholopol/dot-pudica-framework/network/members)
+![Godot](https://img.shields.io/badge/Godot-4.7+-478CBF?style=flat-square\&logo=godotengine\&logoColor=white) ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square\&logo=dotnet\&logoColor=white) ![C#](https://img.shields.io/badge/C%23-12-239120?style=flat-square\&logo=csharp\&logoColor=white) ![MVVM](https://img.shields.io/badge/Architecture-MVVM-0A7E8C?style=flat-square) ![Source Generator](https://img.shields.io/badge/Roslyn-Source_Generator-CB4B16?style=flat-square) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android%20%7C%20iOS%20%7C%20Web-6C757D?style=flat-square) ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square) ![Status](https://img.shields.io/badge/Status-Prototype-orange?style=flat-square) [![Stars](https://img.shields.io/github/stars/Cholopol/dot-pudica-framework?style=flat-square\&logo=github\&color=yellow)](https://github.com/Cholopol/dot-pudica-framework/stargazers) [![Forks](https://img.shields.io/github/forks/Cholopol/dot-pudica-framework?style=flat-square\&logo=github)](https://github.com/Cholopol/dot-pudica-framework/network/members)
 
 [English](README.md) | 简体中文
 
-DotPudica 是一个面向 Godot 4.6 + .NET 8 的轻量级 MVVM 框架。把传统 .NET UI 的绑定模型迁移到 Godot 的节点式界面中，让 View 负责控件与表现，让 ViewModel 负责状态、命令、消息与业务流程。致力于实现无感便捷的游戏UI开发体验。
+DotPudica 是面向 **Godot 4.7 + .NET 8** 的 MVVM 框架。把传统的 .NET 数据绑定迁移到 Godot 节点式 UI：View 控件与表现，ViewModel 状态、命令与流程；编译期源生成，AOT 友好。专注于跨平台的重度UI应用/游戏开发。
 
-DotPudica 仓库包含：
+| 仓库条目                             | 用途                      |
+| -------------------------------- | ----------------------- |
+| `addons/dot-pudica`              | **游戏工程只需这一份**（插件交付物）    |
+| `DotPudicaFramework` / `samples` | 本仓宿主工程 + Showcase 演示    |
+| `tests` / `benchmarks`           | 本仓 CI / 证据，**不要拷进游戏工程** |
+| `.github`                        | CI 与 Release 打包         |
 
-- 一组可以直接在 Godot 中验证的示例场景；
-- 一套可运行的 MVVM 框架基础设施：
+### 快速开始
 
-| 项目                                  | 作用              | 关键词                                                |
-| ----------------------------------- | --------------- | -------------------------------------------------- |
-| `DotPudicaFramework`                | Godot 主工程与示例入口  | `project.godot`、示例场景、调试载体                          |
-| `addons/dot-pudica/Core`            | 与引擎无关的 MVVM 核心层 | `BindingContext`、`PropertyBinding`、`ViewModelBase` |
-| `addons/dot-pudica/Godot`           | Godot 适配层       | `DotPudicaViewRuntime`、控件代理、日志桥接                   |
-| `addons/dot-pudica/SourceGenerator` | Roslyn 编译期生成层   | `[DotPudicaView]`、`[BindTo]`、`[BindCommand]`       |
+本仓库是**完整源码仓**（含样例、测试、基准）。开发游戏时**不要**把整个仓库拷进项目。
 
-运行链路可以概括为：
+1. 从 [Releases](https://github.com/Cholopol/dot-pudica-framework/releases) 下载 `dot-pudica-*.zip`，或只复制本仓的 `addons/dot-pudica/`。
+2. 解压/放到你的 Godot 工程根下，使路径为 `addons/dot-pudica/`。
+3. 按下方「快速使用」启用插件并完成 Bootstrap——**不要**引用或复制 `tests/`、`benchmarks/`、`samples/`。
 
-```text
-Godot Control / Node
-    ↓ 通过 [Export] 挂接控件
-Partial View Stub
-    ↓ 通过 [DotPudicaView] / [BindTo] / [BindCommand] 声明意图
-Source Generator
-    ↓ 生成 ViewModel、BindingContext、初始化与绑定代码
-DotPudicaViewRuntime<TViewModel>
-    ↓ 建立 BindingContext
-PropertyBinding / CommandBinding
-    ↓ 通过 ITargetProxy 与 Godot 控件交互
-ViewModel / ICommand / Messenger / Services
+发版与 Release 说明（关联 Issue/PR）见 [CONTRIBUTING.md](CONTRIBUTING.md#版本与发版)。
+
+### AI 助手Skills
+
+插件附带一套**面向 AI 编程助手的技能集**，位于 `addons/dot-pudica/Skills/`（SKILL.md 格式），用于教会 AI 助手正确使用框架：
+
+- **能力技能**——每个框架能力域（工程接入、页面与绑定、DI/场景 Scope、窗口、池化、消息与线程、验证）都带明确的输入输出契约与验收检查点。
+- **路由技能**（`dotpudica-route`）——决定任务该调用哪个技能，以及正确的调用顺序（bootstrap 最先、验证收尾）。
+- **工作流技能**——端到端配方（新工程接入、新增页面、弹窗、共享数据、场景 Scope、池化优化、修复 DOTPUDICA 诊断）。
+
+使用方法：让 agent 指向 `addons/dot-pudica/Skills/` 并要求它先读 `dotpudica-route/SKILL.md`；或把该目录复制到 agent 的技能目录（如 `$env:USERPROFILE\.config\opencode\skills\`）。技能只覆盖插件公开 API。
+
+***
+
+## 设计理念
+
+Q1: 为什么在 Godot 里用 MVVM？
+
+Q2: 它和传统 Godot 写法的区别？
+
+Q3: 它与桌面 MVVM 框架（WPF、Avalonia 等）的异同？
+
+框架使用示例可以跳到「[快速使用](#快速使用最小可运行配置)」。
+
+### 1. 为什么在 Godot 里使用 MVVM
+
+Godot 原生的 UI 编程模型是”节点树 + 脚本 + 信号“：界面由节点搭出来，逻辑写在节点的脚本里，节点之间用信号通信。这套模型对小型界面非常直接，但随着项目扩展——菜单、背包、联机匹配等——两个问题会越来越突出：
+
+- **状态同步靠手写**。同一个数据（玩家金币、房间状态、匹配进度）往往要驱动多个控件，传统写法是每次状态变化时手动遍历节点、逐个赋值。一旦状态在多个地方被修改，改了一处、忘了刷新另一处几乎是必然发生的事。
+- **逻辑与表现耦合在节点上**。逻辑散落在各个脚本里，强依赖场景树；想对登录流程匹配流程做单元测试，得先搭场景、挂节点、模拟信号，测试成本远高于逻辑本身。
+
+在MVVM的设计中 **ViewModel 持有状态与流程，View 只负责把它们映射成界面，分工明确层次清晰**。
+
+本框架的 Core 层完全不引用 Godot，ViewModel 是普通 .NET 类——可以脱离引擎写单元测试；View 通过绑定把 VM 的属性、命令连到控件上，状态变化由绑定引擎自动推送到界面，不再需要手动刷新。View层与ViewModel层开发并行，有着极高的可维护性与开发效率。MVVM模式的三板斧：数据绑定、声明式UI与数据流，DotPudica都具备。
+
+| 收益     | 说明                              |
+| ------ | ------------------------------- |
+| 状态单一来源 | 界面永远显示 VM 的当前状态，不存在容易失同步的副本     |
+| 可测试    | 逻辑脱离场景树，纯 C# 单测，不启动 Godot       |
+| 可复用    | 同一 VM 可被不同 View 驱动（换布局、换皮肤、换入口） |
+| 泄漏风险可控 | 订阅与生命周期由框架代管，`[Subscribe]` 自动退订 |
+
+**简单的控件界面、demo，原生写法更快**——多一层抽象总归有成本。当界面状态变多、需要跨页共享数据或需要数据驱动UI更新时，MVVM 的收益才开始放大。这也是本框架“能力按需叠加“的原因：最小配置只有声明式页面 + 绑定，窗口、Scope、共享服务都是用到才加。
+
+### 2. 与传统 Godot 写法的区别
+
+| 场景      | 传统 Godot 写法                     | DotPudica                                        |
+| ------- | ------------------------------- | ------------------------------------------------ |
+| 数据 → 界面 | 手写信号接线，状态变化时逐个控件手动刷新            | 属性绑定，VM 属性变化自动推送到控件                              |
+| 界面 → 数据 | 控件信号 → 脚本读值、写回，代码散落各处           | 命令绑定 / `TwoWay` 绑定，方向在声明处集中表达                    |
+| 逻辑位置    | 与节点混在同一脚本，强依赖场景树                | ViewModel 是纯 C# 类，不引用 Godot                      |
+| 状态同步    | 多处手写，改一处漏一处                     | 绑定引擎统一同步，无副本可失同步                                 |
+| 生命周期    | 手写 `_Ready`/`_ExitTree` 接线、手动退订 | `[DotPudicaView]` 声明式生命周期，订阅自动建立/解除              |
+| 依赖注入    | 无，或手写全局单例                       | `AppContext` 根 DI + `SceneContextHost` 场景级 Scope |
+| 错误发现时机  | 运行时（路径写错、信号名拼错）                 | 编译期诊断（DOTPUDICA 系列），绑定路径错误直接编译失败                 |
+| UI 构建   | 场景编辑器 + 代码                      | 不变——绑定是附加层，不替代 Godot 编辑器工作流                      |
+
+**优点**：状态单一来源、逻辑可单测、跨页共享数据有明确归属、绑定错误在编译期暴露、页面切换不泄漏。
+
+**代价**：多一层抽象，初期比直接写信号多几行声明；绑定关系写在 C# 特性里而不是 `.tscn` 中，场景编辑器里看不到「谁绑了谁」，需要回看 View 源码；小型 UI 上收益不明显。
+
+### 3. 与 Avalonia 等现代 MVVM 框架的对比
+
+如果你熟悉 Avalonia、WPF 这类.NET生态 MVVM 框架，DotPudica 的大多数概念可以平迁；少数刻意不同的点，背后各有原因。目前的Alpha版本经历了四种方案的尝试，比如划分UI单元来实现预想的系统热插拔能力进而优化应用的内存管理、引入Controller概念来集中和复用业务逻辑等，但无一例外最后都被推翻了，最后稳定到今天的形态。当然也许是受作者的经验水平所限而没有落地，历史经验告诉我优秀的设计总是趋同进化的。如果你有好的想法也可以聊聊。
+
+**相似的部分：**
+
+- **三层 MVVM 分离**：View / ViewModel / Model 的职责划分与桌面 MVVM 一致——ViewModel 是不依赖 UI 的纯 .NET 类；Model 仍是普通 .NET 类型，由业务侧自行组织（见下文「不规定 Model 层」）；
+- **同一套属性通知工具**：沿用 CommunityToolkit.Mvvm 的 `[ObservableProperty]` / `[RelayCommand]`，与 Avalonia 官方模板一致；
+- `BindingMode` **语义相同**：`OneWay` / `TwoWay` / `OneWayToSource` / `OneTime`，默认模式同样按控件推断——输入控件默认 `TwoWay`，显示控件默认 `OneWay`；
+- **强类型转换器**：`IValueConverter<TIn, TOut>` 热路径零装箱，思路对应 Avalonia 的 `FuncValueConverter`；
+- **集合绑定**：`INotifyCollectionChanged` 驱动 `[ItemsSource]` 列表与虚拟列表；
+- **DI 管理服务与 ViewModel**，支持进程级与场景级两种作用域；
+- **订阅/退订是显式生命周期的一部分**，销毁时由框架统一清理。
+
+**不同的部分：**
+
+- **不规定 Model 层。** 框架产品边界是 View ↔ ViewModel 的绑定与生命周期管理：不提供 Entity / Repository / 领域模型基类，也不约定持久化或网络协议怎么写。游戏与应用的领域形态差异极大（DTO、存档、ECS、远程 API等等），定一套”正确 Model“只会把框架绑死在某一种建模上，也与按需叠加能力冲突。跨页 / 共享数据的正式落点是可注入的 Singleton 服务；Showcase 里的 `Shared/Models` 只是用户态 DTO 示例，不是框架契约。这与 WPF / Avalonia 通常也不规定领域层一致。业务数据如何分层、如何进入 ViewModel，需要项目自己约定。
+- **没有 XAML，不发明标记语言。** Avalonia 的 View 层是 XAML 标记，绑定写在标记里；DotPudica 的 View 层是 Godot 场景（`.tscn`）+ 代码，绑定以 `[BindTo]` 等特性挂在节点字段上。
+- **绑定是编译期生成的，不是运行时反射。** WPF 传统绑定与 Avalonia 早期都在运行时按字符串解析（Avalonia 11 起默认编译 XAML 绑定）；DotPudica 没有 XAML 管线，直接在 C# 特性上让 Roslyn 源生成器静态校验路径、生成强类型委托代码——路径错误在编译期就是错误，运行期零反射、AOT 友好。代价：绑定路径必须是编译期可静态解析的写法，运行时拼路径、动态创建目标都不支持——这是换取零反射与 AOT 的显式取舍。
+- **没有 DataContext 隐式继承。** Avalonia/WPF 的绑定靠 DataContext 沿视觉树向下传递、写相对路径；DotPudica 的绑定一律是本 View 的 ViewModel 上的显式路径（支持 `Account.Username` 链式）。理由则是：Godot 的场景树与视觉树并不一一对应（容器、代理节点众多），隐式继承会让这个控件到底绑着谁难以预测；显式路径 + 编译期校验换来确定性。代价则是：每个绑定都要写清路径前缀。
+- **View 需要手写两行** `_Ready() => InitializeView();` **/** `_ExitTree() => DisposeView();`**。** 这是 Godot 的硬约束而非设计偏好：Godot 只分发**用户源码中声明**的虚方法覆盖，而 Roslyn 源生成器之间互相不可见——生成器产出的 `_Ready` 永远不会被引擎调用。漏写这两行会直接报`DOTPUDICA046`。
+- **View-first，显式声明 VM 类型。** Avalonia 常用 DataTemplate / ViewModelLocator 做类型 → View的隐式映射；DotPudica 用 `[DotPudicaView(typeof(TVM))]` 在 View 上直接声明 VM。Godot 场景实例化本来就是显式的，隐式映射只会增加维护成本；显式声明还让生成器在编译期就知道 VM 类型，从而能生成编译期工厂（零反射、AOT 友好）。
+- **生命周期锚定场景树。** VM 的创建/销毁跟随节点的 `_Ready`/`_ExitTree`（进树绑定、出树销毁），多页与弹窗用 `GodotWindowManager` 叠层。Godot 没有桌面框架意义上的窗口，场景树进出树就是页面生命周期最自然的锚点。
+
+***
+
+## 能力一览与配置选择
+
+### 全能力鸟瞰
+
+```mermaid
+flowchart TB
+  SG["SourceGenerator 编译期绑定"]
+  AC["AppContext 根 DI / 可选 WindowManager"]
+  Host["SceneContextHost 手动挂场景根"]
+  Page["View 绑定 · Lease · 命令 · 列表"]
+
+  SG --> Page
+  AC --> Host
+  AC --> Page
+  Host -->|Scope + Operations| Page
+  AC -.->|窗口 Show/Dismiss| Page
 ```
 
-这一分层的价值在于：
+| 层级  | 能力                                                             | 何时需要                      |
+| --- | -------------------------------------------------------------- | ------------------------- |
+| 编译期 | Attribute 绑定、诊断、声明式生命周期                                        | **始终**（引用 Analyzer 即可）    |
+| 页面  | 声明式 VM 创建/注入/订阅、Owned/External VM、命令、列表、转换器、InteractionRequest | **始终**（最小 UI）             |
+| 页面  | UI 调度（`IUiDispatcher`）+ 绑定侧合并投递（Coalescer）                     | **始终**（碰控件必回主线程；高频刷新自动合并） |
+| 页面  | 对象池化：视图 `NodePool`、窗口 `ConfigurePool`/`ShowPooled`             | 频繁创建/销毁的面板、弹窗、列表行（回收复用）   |
+| 应用  | AppContext、Singleton 服务                                        | 跨页共享数据                    |
+| 应用  | WindowManager                                                  | 多全屏页 / 弹窗                 |
+| 场景  | SceneContextHost → Scope + Operations                          | 场景隔离 DI，或离场取消异步（**须手动挂**） |
 
-- 核心绑定逻辑不直接依赖具体场景结构
-- Godot 控件差异被 `ITargetProxy` 层吸收
-- View 样板代码被 Source Generator 吸收
-- ViewModel 仍可使用 CommunityToolkit.Mvvm 的成熟能力
+### 配置怎么选
 
-## 技术栈&#x20;
+按需叠加，**未列出的不要配**：
 
-本项目当前建立在以下技术组合之上：
+```mermaid
+flowchart TB
+  A["`① 必选
+  声明式页面 + 绑定`"]
+  B["`② 跨页数据？
+  → Singleton 服务`"]
+  C["`③ 多页/弹窗？
+  → WindowManager`"]
+  D["`④ 场景隔离或离场取消？
+  → SceneContextHost（手动挂根）`"]
+  E["`⑤ 频繁开合的面板/弹窗？
+  → 对象池化（可选能力 5）`"]
+  A --> B --> C --> D --> E
+```
 
-- `Godot.NET.Sdk/4.6.1`
-- .NET 8 主运行时，Android 目标预留 `net9.0`
-- `CommunityToolkit.Mvvm` 用于 `ObservableProperty`、`RelayCommand`、`Messenger`、`Ioc`
-- `Microsoft.Extensions.DependencyInjection` 用于服务容器
-- Roslyn Incremental Source Generator 用于自动生成 View 绑定样板代码
+多数设置页 / 单机菜单做到 **① 或 ①②** 即可；联机房间、匹配取消再上 **④**；频繁开合的面板/弹窗需要复用节点时上 **⑤**。
 
-这种组合的优点很直接：
+***
 
-- ViewModel 写法接近标准 .NET MVVM，没有额外 DSL 负担
-- 绑定声明贴近控件字段，可读性很高
-- 生成器在编译期完成样板拼装，避免运行时结构扫描
-- 运行时仍保留反射兜底能力，兼顾扩展性
+## 快速使用：最小可运行配置
 
-## 快速开始 - 让UI像含羞草般绽放
+从空工程到第一个绑定跑通，只需要完成 **A → E** 五步。窗口、场景 Scope、共享服务都属于可选增强，这一步先不碰它们也能完整跑通。
 
-### 1. 打开工程
+### A. 环境
 
-- 使用 Godot 4.6.1 打开根目录下的 `project.godot`
-- 确保本机已安装对应 .NET SDK
+| 项     | 要求                                             |
+| ----- | ---------------------------------------------- |
+| Godot | **4.7.x .NET（Mono）** 版                         |
+| SDK   | **.NET 8**                                     |
+| 插件    | 将 `addons/dot-pudica` 放进你的工程后启用（见上文「装进你的游戏工程」） |
 
-### 2. 编译项目
+**新游戏工程**：只需 addon + 本页步骤 B–E。\
+**本仓库 / Showcase**：已启用插件并配好引用，可当模板——用 Godot 打开根目录 `project.godot`，`Ctrl+Shift+B` 或：
 
-Godot .NET 项目由 Godot 编辑器管理 .NET 编译，无需手动敲 `dotnet build`。
-
-**方式一：编辑器内编译（推荐）**
-
-- 使用 Godot 4.6.1 打开项目后，直接按 `Ctrl + Shift + B` 或点锤子图标 🔨 **Build** 触发编译
-- Godot 会自动识别 `DotPudica.Core`、`DotPudica.Godot`、`DotPudica.SourceGenerator` 三个 addon 项目的引用关系并按正确顺序编译
-
-**方式二：命令行编译**
-
-```bash
+```powershell
 dotnet build DotPudicaFramework.sln
 ```
 
-**方式三：导出时完整编译**
+### B. 宿主 `.csproj`：插件自动注入
 
-- 在 **Project → Export** 中选择目标平台（Windows/macOS/Linux/Android/Web）导出时，Godot 会执行一次完整编译，确保所有依赖和源码生成器输出均已纳入最终产物
+Godot .NET 工程创建时会在 `project.godot` 同级生成宿主 `.csproj`。**框架引用无需手写**：在编辑器 **项目 → 项目设置 → 插件** 启用 **DotPudica** 后，`plugin.gd` 会自动在宿主 `.csproj` 中注入并维护 `<!-- DotPudica:Begin -->` … `End` 之间的片段，且每次插件加载都会校验同步；只有禁用/卸载插件时才会移除。注入片段包含编译属性（`Nullable`/`ImplicitUsings`）、插件与本仓纯 .NET 测试/基准源码排除、`CommunityToolkit.Mvvm` 与 `Microsoft.Extensions.DependencyInjection` 包引用，以及 Core / Godot / SourceGenerator（作 Analyzer）三个项目引用（与 `addons/dot-pudica/plugin.gd` 中 `HOST_BLOCK` 一致；`tests/DotPudica.Integration` **不**排除，需编进宿主程序集）：
 
-### 3. 编写一个最小 View
+```xml
+<!-- DotPudica:Begin -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/DotPudica.Tests/**;benchmarks/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="addons/dot-pudica/**/*.cs" />
+    <Compile Remove="tests/DotPudica.Tests/**/*.cs" />
+    <Compile Remove="benchmarks/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="addons/dot-pudica/Core/DotPudica.Core.csproj" />
+    <ProjectReference Include="addons/dot-pudica/Godot/DotPudica.Godot.csproj" />
+    <ProjectReference Include="addons/dot-pudica/SourceGenerator/DotPudica.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+<!-- DotPudica:End -->
+```
+
+> **注意**：注入要求宿主 `.csproj` 已存在——若在创建 C# 工程之前就启用了插件，插件会跳过注入并打印提示，重新启用一次插件即可补齐；已手写过旧版引用的工程，插件会按 Begin/End 标记同步为最新内容。片段中的 `tests/DotPudica.Tests` 与 `benchmarks` 排除只与本仓库目录有关，其他工程没有这些目录时无副作用。
+
+### C. 应用上下文（最小 Bootstrap）
+
+在主场景最早进树的节点（或 Autoload）上初始化一次，整个进程生命周期内只此一份。窗口管理器可选——没有弹窗时可以传 `null`。
 
 ```csharp
-[DotPudicaView(typeof(MyPanelViewModel))]
-public partial class MyPanelView : Control
-{
-    [Export, BindTo(nameof(MyPanelViewModel.Title), Mode = BindingMode.OneWay)]
-    private Label _title = null!;
+using DotPudica.Godot;
+using DotPudica.Godot.Views;
+using Godot;
+using Microsoft.Extensions.DependencyInjection;
+using AppContext = DotPudica.Godot.AppContext;
 
-    public override void _Ready()
+public partial class GameBootstrap : Node
+{
+    private AppContext? _app;
+
+    public override void _EnterTree()
     {
-        ViewModel = new MyPanelViewModel();
-        DotPudicaInitialize();
+        // 若需要弹窗/全屏页切换，先准备 GodotWindowManager 子节点再传入
+        GodotWindowManager? wm = GetNodeOrNull<GodotWindowManager>("WindowManager");
+
+        _app = new AppContext().Initialize(services =>
+        {
+            // 最小：可不注册任何服务，页面里直接 new ViewModel 即可
+            // services.AddSingleton<IInventoryService, InventoryService>();
+        }, wm);
+
+        base._EnterTree();
     }
 
     public override void _ExitTree()
     {
-        DotPudicaDispose();
+        _app?.Dispose();
+        _app = null;
         base._ExitTree();
     }
 }
 ```
 
-### 4. 编写对应 ViewModel
+> **注意**：`SceneContextHost` 不会自动出现在场景中，需要时手动挂载；且任何 Host **进树之前**，`AppContext.Initialize` 必须先完成。
+
+### D. 最小 View + ViewModel
+
+**ViewModel** 不引用 Godot，是普通 .NET 类：
 
 ```csharp
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -126,176 +274,7 @@ public partial class MyPanelViewModel : ViewModelBase
 }
 ```
 
-## ViewModel 基类 - 内功与呼吸法
-
-### `ViewModelBase` - 日志、消息与生命周期
-
-`ViewModelBase` 继承 `ObservableObject`，并内置：
-
-- 懒加载日志对象 `Log`
-- 弱引用消息总线 `Messenger`
-- `Send<TMessage>()` 与 `Register<TMessage>()` 快捷方法
-- `Dispose()` 生命周期回收入口
-
-推荐样板：
-
-```csharp
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using DotPudica.Core.ViewModels;
-
-public partial class LoginViewModel : ViewModelBase
-{
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
-    private string _username = "";
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
-    private string _password = "";
-
-    [ObservableProperty]
-    private string _errorMessage = "";
-
-    private bool CanLogin()
-        => !string.IsNullOrWhiteSpace(Username)
-           && !string.IsNullOrWhiteSpace(Password);
-
-    [RelayCommand(CanExecute = nameof(CanLogin))]
-    private async Task LoginAsync()
-    {
-        ErrorMessage = "";
-        await Task.Delay(500);
-        Send(new DotPudica.Core.Messaging.NotificationMessage("LoginSuccess"));
-    }
-}
-```
-
-### `ValidatableViewModelBase` - 数据注解验证与表单校验
-
-`ValidatableViewModelBase` 继承 `ObservableValidator`，适合表单型界面：
-
-- 支持 `[Required]`、`[Range]`、`[EmailAddress]` 等内置验证注解
-- 提供 `ValidateAll()` 统一验证入口
-- 适合注册、角色创建、设置页等需要约束输入的场景
-
-推荐样板：
-
-```csharp
-using System.ComponentModel.DataAnnotations;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using DotPudica.Core.ViewModels;
-
-public partial class RegistrationViewModel : ValidatableViewModelBase
-{
-    [ObservableProperty]
-    [Required(ErrorMessage = "用户名不能为空")]
-    [MinLength(3, ErrorMessage = "用户名至少 3 个字符")]
-    private string _username = "";
-
-    [RelayCommand]
-    private void Submit()
-    {
-        if (!ValidateAll())
-            return;
-    }
-}
-```
-
-## 数据绑定 - 从“触碰”到“害羞”之间
-
-### 已实现的绑定方式
-
-当前框架已经实现两条主链路：
-
-| 绑定类型 | 入口特性            | 说明                      |
-| ---- | --------------- | ----------------------- |
-| 属性绑定 | `[BindTo]`      | 将控件属性与 ViewModel 属性路径连接 |
-| 命令绑定 | `[BindCommand]` | 将控件事件绑定到 `ICommand`     |
-
-### 绑定模式
-
-`[BindTo]` 支持以下模式：
-
-| 模式               | 方向                 | 典型控件                           |
-| ---------------- | ------------------ | ------------------------------ |
-| `OneWay`         | ViewModel -> View  | `Label`、`ProgressBar`          |
-| `TwoWay`         | ViewModel <-> View | `LineEdit`、`CheckBox`、`Slider` |
-| `OneWayToSource` | View -> ViewModel  | 输入主导型场景                        |
-| `OneTime`        | 首次同步后不再更新          | 静态展示                           |
-| `Default`        | 自动推断               | 有输入信号则推断为 `TwoWay`，否则 `OneWay` |
-
-### 支持的默认控件推断
-
-生成器通过 `Constants.ControlDefaults` 内置了常见控件推断规则，例如：
-
-- `LineEdit -> Text / text_changed`
-- `TextEdit -> Text / text_changed`
-- `SpinBox -> Value / value_changed`
-- `CheckBox -> ButtonPressed / toggled`
-- `OptionButton -> Selected / item_selected`
-- `ProgressBar -> Value`
-- `Label -> Text`
-- `Button -> pressed`
-
-很多时候只写：
-
-```csharp
-[Export, BindTo("Username")]
-private LineEdit _usernameInput = null!;
-```
-
-生成器就可以自动推断出目标属性与变化信号。
-
-### 值转换器
-
-当 ViewModel 值类型与控件表达方式不完全一致时，可以通过 `Converter` 接入转换器：
-
-```csharp
-[Export, BindTo("IsLoading", Mode = BindingMode.OneWay,
-    Converter = typeof(BoolToVisibilityConverter))]
-private ProgressBar _loadingBar = null!;
-```
-
-适用场景包括：
-
-- 布尔值到可见性
-- 枚举到文本
-- 数值到样式或颜色
-- 数据模型到 Godot 资源对象
-
-### 命令绑定
-
-命令绑定把 Godot 控件事件转接到 `ICommand`：
-
-```csharp
-[Export, BindCommand("LoginCommand")]
-private Button _loginButton = null!;
-```
-
-ViewModel 中只需：
-
-```csharp
-[RelayCommand]
-private void Login()
-{
-    // 业务逻辑
-}
-```
-
-### &#x20;
-
-## View 层写法 - 监督UI的调度板
-
-一个典型 View 通常只做四件事：
-
-1. 用 `[Export]` 挂接 Godot 控件
-2. 用 `[BindTo]` / `[BindCommand]` 声明绑定
-3. 在 `_Ready()` 中创建或注入 `ViewModel`
-4. 在 `_ExitTree()` 中调用 `DotPudicaDispose()`
-
-推荐样板：
+**View**：在场景里放好控件，在检查器里把 Label 赋给导出的 `_title` 字段；类上声明一个 `[DotPudicaView]` 特性，整个页面就声明完了：
 
 ```csharp
 using DotPudica.Core.Binding;
@@ -303,723 +282,415 @@ using DotPudica.Core.Binding.Attributes;
 using DotPudica.Godot.Views;
 using Godot;
 
-[DotPudicaView(typeof(PlayerHudViewModel))]
-public partial class PlayerHudView : Control
+[DotPudicaView(typeof(MyPanelViewModel))]
+public partial class MyPanelView : Control
 {
-    [Export, BindTo(nameof(PlayerHudViewModel.HealthText), Mode = BindingMode.OneWay)]
-    private Label _healthLabel = null!;
+    [Export, BindTo(nameof(MyPanelViewModel.Title), Mode = BindingMode.OneWay)]
+    private Label _title = null!;
 
-    [Export, BindTo(nameof(PlayerHudViewModel.HealthPercent), Mode = BindingMode.OneWay)]
-    private ProgressBar _healthBar = null!;
+    public override void _Ready() => InitializeView();
+    public override void _ExitTree() => DisposeView();
 
-    [Export, BindCommand(nameof(PlayerHudViewModel.UsePotionCommand))]
-    private Button _usePotionButton = null!;
+    partial void OnViewReady() { /* 在这里构建 UI */ }
+}
+```
 
-    public override void _Ready()
+源生成器在 `InitializeView()` / `DisposeView()` 背后生成完整生命周期：服务注入 → `OnViewReady()` →
+编译期 VM 工厂 → `SetViewModel`/`DotPudicaInitialize` → 事件订阅 → `OnViewModelBound()`；
+销毁时 `OnViewDisposing()` → 自动退订 → `DotPudicaDispose()`。
+两行 Godot 覆盖为必需：Godot 只分发**用户源码**中声明的虚方法覆盖（源生成器之间互相不可见），
+漏写会报 `DOTPUDICA046`。
+
+**声明式 View 参考**：
+
+| 成员                                                              | 作用                                                            |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `_Ready() => InitializeView()`                                  | 必需：执行生成的生命周期（注入、建 VM、绑定、订阅）                                   |
+| `_ExitTree() => DisposeView()`                                  | 必需：执行销毁流程（退订、Dispose）                                         |
+| `partial void OnViewReady()`                                    | 可选钩子：构建 UI（此时 VM 尚不存在）                                        |
+| `partial void OnViewModelBound()`                               | 可选钩子：VM 已就绪且非空——导航、启动服务                                       |
+| `partial void OnViewDisposing()`                                | 可选钩子：仍可访问 VM——取消 scope、手动清理                                   |
+| `[Inject]` 字段/属性                                                | 在 `OnViewReady` 之前从 `AppContext.Current.Services` 注入服务        |
+| `[ViewModelFactory]` 方法                                         | 参数受限的工厂方法，用于构造函数无法从 DI 完全解析的 VM                               |
+| `[Subscribe("Event")]` 方法                                       | 绑定后自动订阅 VM 事件，销毁时自动退订（消除最常见泄漏点）                               |
+| `[DotPudicaView(..., AutoInitialize = false)]`                  | 共享面板：跳过生成的 VM 创建/绑定，保留手动 `SetViewModel`/`DotPudicaInitialize` |
+| `[DotPudicaView(..., Ownership = ViewModelOwnership.External)]` | 默认 `Owned`；`External` 时销毁不 Dispose VM                         |
+
+**规则**：VM 恰好一个公开构造函数且所有参数为接口类型时，生成器生成编译期工厂
+`new T(services.GetRequiredService<...>())`（零反射、AOT 友好）；非接口参数 / 多构造函数
+必须提供 `[ViewModelFactory]` 方法，否则报 `DOTPUDICA040` / `DOTPUDICA041`。
+
+### E. 验收
+
+1. `dotnet build` 无错误——绑定路径、VM 工厂、订阅签名等错误在编译期就报成诊断，而不会留到运行时。
+2. 运行场景，Label 显示 `Hello DotPudica`。
+3. 本仓库完整样例：主场景指向 Showcase 后按 **F5**（`samples/Showcase`）。
+
+跑通之后，下一章”按需加能力“按场景叠加即可。
+
+***
+
+## 可选：按需加能力
+
+最小闭环（A–E）已可做单页绑定。下面按需叠加。
+
+### 1）命令绑定
+
+```csharp
+// ViewModel
+[RelayCommand]
+private void Save() { /* ... */ }
+
+// View
+[Export, BindCommand(nameof(MyPanelViewModel.SaveCommand))]
+private Button _saveButton = null!;
+```
+
+### 2）共享服务（跨页数据）
+
+在 Bootstrap 的 `Initialize` 里注册 Singleton，页面声明式取用：
+
+```csharp
+//Bootstrap 
+services.AddSingleton<IProfileService, ProfileService>();
+
+// 页面：构造函数参数全是接口 → 生成器自动解析；或显式 [Inject]
+[DotPudicaView(typeof(LoginViewModel))]
+public partial class LoginPage : ShowcasePageWindow
+{
+    [Inject]
+    private IProfileService _profileService = null!;
+}
+```
+
+- **服务**长寿命、进 AppContext；**页面 ViewModel** 短寿命、默认 `Owned`（销毁时自动释放）。
+- 同页多面板共用一份 VM：子面板 `[DotPudicaView(..., AutoInitialize = false)]` + `BindShared(vm)`（`SetViewModel(vm, ViewModelOwnership.External)` 手动接线，关面板不 Dispose VM）。
+
+### 3）窗口叠层
+
+场景中放置 **一个** `GodotWindowManager` 节点（进程级单例，整个应用只需要一个，`AppContext.Initialize` 也只接受一个），并在 `Initialize(..., windowManagerNode)` 传入；全屏页/弹窗继承 `GodotWindow`，用 `WindowManager.Show` / `Dismiss`。\
+位置要求：放在主场景常驻分支下（Bootstrap 同层或子节点均可，样例用 `GetNodeOrNull<GodotWindowManager>("WindowManager")` 查找），并在任何 `Show` 之前完成 `AppContext.Initialize`。放了多个节点时，只有传给 `Initialize` 的那个参与窗口管理，其余只是普通节点。\
+对照：`samples/Showcase/ShowcaseBootstrap.cs`、`Gallery/Windows`。
+
+### 4）场景 Scope（DI 子范围 + 异步取消）
+
+`SceneContextHost` 是框架提供的 `Node`（`DotPudica.Godot.SceneContextHost`），**不会自动挂载**，需要你在场景里**手动**挂上：
+
+| 方式  | 做法                                                      |
+| --- | ------------------------------------------------------- |
+| 编辑器 | 选中房间/关卡等**场景根节点** → 附加脚本 → 选 `SceneContextHost`         |
+| 代码  | `AddChild(new SceneContextHost { Name = "RoomScope" })` |
+
+不挂 Host 就没有场景级 `Scope` / `Operations`；单页自己 `new ViewModel()` 时可以不挂。\
+挂载后：进树创建 DI 子范围与取消域，退树自动拆掉。须保证 **Bootstrap 的** `AppContext.Initialize` **已完成** 后再让 Host 进树。
+
+**设计精髓：从 Host 取 VM。**
+
+- **根 DI 与场景 DI 寿命不同。** 默认生成器从 `AppContext` 根容器建 VM；场景 Transient / Scoped 依赖必须从当前 Host 的 `IServiceScope` 解析，否则会串局或泄漏到下一场景。
+- **View 决定何时建，Host 决定从哪建。** `[ViewModelFactory]` 是二者交汇点：工厂里显式定位 Host（如 `GetParent()`），再 `host.Scope.ViewModels.Create<T>()`。
+- **所有权仍归 View。** Host 只供应 Scope，不持有页面 VM；页面默认 Owned，退树时子 View 先 Dispose VM，父 Host 再拆 Scope（Godot 保证子先于父 `_ExitTree`）。
+- **Node 树与 DI 的联系只能在 View 侧。** `ISceneScope` 不在根容器注册，VM 又不引用 Godot；能同时看到树上 Host 与 DI `Create` 的，正是 View 上的工厂方法。
+- **Host 保持可选。** 不需要场景隔离时继续走根工厂 / `new`；房间、匹配等才叠加这一层。
+- `SceneContextHost` 作用**在这个场景的 DI 边界里，用 DI 装配出一份短命 VM**。既自动注入，又和场景生命周期相同。
+
+推荐节点树：
+
+```text
+RoomRoot (脚本: SceneContextHost)    ← 你手动挂在这里
+  └── YourPage                     ← 需要用 Scope 的页面放子树下
+```
+
+```csharp
+// 需先 AddTransient<MatchViewModel>()；页面置于 SceneContextHost 子树下
+[ViewModelFactory]
+private MatchViewModel CreateMatch()
+{
+    var host = GetParent() as SceneContextHost
+        ?? throw new InvalidOperationException("将页面放在 SceneContextHost 子树下，或自行查找 Host");
+    return host.Scope.ViewModels.Create<MatchViewModel>();
+}
+```
+
+- `host.Scope`：场景级 DI
+- `host.Operations`：离场景取消异步\
+  对照：`samples/Showcase/Gallery/ScopesAndDi`、`MiniGame/Match`。
+
+### 5）对象池化（View / 窗口复用）
+
+频繁创建/销毁的界面（物品详情面板、弹窗等）可池化：**回收时不销毁节点，只摘树 + 解绑 + 断 VM；取用时挂树重绑**。池按 `maxSize` 有界，**回收超过容量时多出的节点直接** `QueueFree` **销毁**。
+
+#### a: 视图池化（手动激活，`AutoInitialize = false`）
+
+```csharp
+// 视图：声明 Pooled，生命周期第二行换成 RecycleView()
+[DotPudicaView(typeof(ItemDetailViewModel), AutoInitialize = false, Pooled = true)]
+public partial class ItemDetailPanel : VBoxContainer
+{
+    public override void _Ready() => InitializeView();
+
+    public override void _ExitTree() => RecycleView();
+
+    // 生成方法：External 重绑 + 重新接线（含 [Subscribe] 重订阅）
+    public void BindShared(ItemDetailViewModel vm) => ActivateViewModel(vm);
+}
+```
+
+```csharp
+// 持有方：自建池（也可用任意 IObjectPool 实现），pool 由持有方持有
+var pool = NodePool.Create<ItemDetailPanel>(maxSize: 4);
+
+var view = pool.Allocate();           // 池空则 new，否则复用回收节点
+host.AddChild(view);                  // 进树触发 _Ready → InitializeView
+view.BindShared(itemVm);              // 重绑新 VM
+
+view.GetParent()?.RemoveChild(view);  // 出树自动触发 RecycleView（解绑+退订+断 VM，节点存活）
+pool.Free(view);                      // 入池缓存；池满则 QueueFree 销毁
+```
+
+语义要点：
+
+- **出树即回收**：`RemoveChild` 与 `QueueFree` 都会触发 `_ExitTree → RecycleView()`——解绑、退订、断 VM 引用一次完成，节点不销毁。
+- **VM 归持有方**：`ActivateViewModel(vm)` 强制 `External` 所有权，回收时只断引用不释放 VM。
+- **契约**：池化对象不要直接 `QueueFree`（会在池内留下失效条目），一律走 `pool.Free`。
+
+#### b: 视图池化（自动初始化，`AutoInitialize = true`）
+
+与窗口池化方式统一：回收（摘树）时 `RecycleView()` 自动 `RequestReady()`，下次挂树重跑 `_Ready → InitializeView`——**全新 Owned VM + 绑定**。持有方只负责借还节点，不建 VM、不释放 VM：
+
+```csharp
+// 视图：Pooled = true（AutoInitialize 默认 true）
+[DotPudicaView(typeof(ItemDetailViewModel), Pooled = true)]
+public partial class ItemDetailPanel : VBoxContainer
+{
+    public override void _Ready() => InitializeView();
+
+    public override void _ExitTree() => RecycleView();
+}
+```
+
+```csharp
+// 持有方：只借还节点，VM 由视图自建自管
+var pool = NodePool.Create<ItemDetailPanel>(maxSize: 4);
+
+var view = pool.Allocate();
+host.AddChild(view);                  // 进树 → _Ready → InitializeView：新 Owned VM + 绑定
+
+view.GetParent()?.RemoveChild(view);  // 出树 → RecycleView：解绑 + 释放 VM + 重武装 _ready
+pool.Free(view);                      // 入池缓存；池满则 QueueFree 销毁
+```
+
+共享 VM（多视图绑同一实例）场景继续使用手动激活模式（上文）。
+
+#### c: 窗口池化（管理器托管，可 `AutoInitialize = true`）
+
+```csharp
+// 窗口：Pooled = true（AutoInitialize 默认 true——每次激活由视图自建全新 Owned VM）
+[DotPudicaView(typeof(PooledPopupViewModel), Pooled = true)]
+public partial class PooledPopup : GodotWindow
+{
+    public override void _Ready() => InitializeView();
+
+    public override void _ExitTree() => RecycleView();
+}
+```
+
+```csharp
+// 使用方：管理器注册一次（幂等，同容量重复调用无副作用），之后 ShowPooled 显示
+wm.ConfigurePool<PooledPopup>(maxSize: 2);
+wm.ShowPooled<PooledPopup>();   // 池空则新建，否则复用回收节点
+wm.Dismiss(window);             // Dismiss 转场结束后自动回收（摘树 + 生命周期归零 + 入池）
+```
+
+语义要点：
+
+- **Dismiss 即回收**：转场结束自动摘树、生命周期归零（`Created`/`Dismissed` 复位），下次 `ShowPooled` 复用同一节点；`_ExitTree → RecycleView()` 同样自动执行。
+- **每次激活新 VM**：`AutoInitialize = true` 时回收已 `RequestReady()`（Godot 的 `_ready()` 每节点一生只调用一次），重挂树后重跑 `InitializeView()`——新 Owned VM + 绑定，回收时该 VM 被释放。
+- **兜底**：`wm.Clear()`（无谓词）与窗口管理器随场景销毁时，池内缓存节点一并销毁。
+- **池化视图统一流程**：所有池化视图（窗口与普通 `Node`/`Control`）回收时 `RecycleView()` 自动 `RequestReady()`，重挂树后自动重跑 `_Ready → InitializeView`（新 Owned VM + 绑定）——两种 `AutoInitialize` 模式一致；复用窗口每次激活都会重新走 `Create()`/`OnCreate()`（`ShowPooled` 传入的 bundle 会在每次激活重放），一次性数据建议由新 VM 获取。
+
+对照：`samples/Showcase/Gallery/Pools`（视图池化演示卡）、`Gallery/Windows`（7. Pooled Popup窗口池化演示卡）。
+
+### 6）线程调度与操作批处理
+
+Godot 控件只能在主线程访问；ViewModel 通知、网络回调却常从后台冒出。框架用两层机制处理：**调度回主线程**，以及**同类更新合并为最新一次**。页面 `_Ready` 里 `CaptureUiContext` 会抓住 Godot 的 `SynchronizationContext`，之后绑定写控件都走这套路径——**默认开启，无需额外配置**。
+
+**调度：`IUiDispatcher`**
+
+| API             | 作用                                    |
+| --------------- | ------------------------------------- |
+| `CheckAccess()` | 当前是否已在 UI 线程                          |
+| `Post(Action)`  | 已在 UI 线程则同步执行，否则投递到 Godot SyncContext |
+
+具体实现：`UiDispatcher.Immediate`（单测）、`FromSynchronizationContext`（正式宿主）。业务侧也可注入同一 dispatcher，自行 `Post` 回主线程改 VM / UI。
+
+**批处理：`UiDispatchCoalescer`（绑定内部）**
+
+不是事务式「攒一批再提交」，而是**调度合并**：同一绑定通道上，未执行完前再来更新 → **不再重复 Post**；主线程执行时只应用**最新版本**。属性 → 控件、集合同步、虚拟列表刷新、`CanExecute` 等目标侧热路径都走它。
+
+效果：后台一秒改 Progress 100 次，主线程往往只刷几次当前值，而不是 100 次控件赋值。
+
+本机可复现的对照数字与图见：
+
+- 桌面（JIT / headless）：[benchmarks/report/RESULTS.md](benchmarks/report/RESULTS.md)（`.\benchmarks\run-all.ps1`）
+- iOS 真机 NativeAOT：[benchmarks/report/RESULTS_IOS.md](benchmarks/report/RESULTS_IOS.md)（导出包跑 `BenchmarkRunner.tscn`）
+
+**业务侧合并：`LatestSnapshotMailbox<T>`**
+
+高频推送（网络快照等）可自用：后台 `Publish(不可变快照)` 只保留最后一份；主线程 `TryDrainLatest` 有则应用一次。与 Coalescer 同思路——多写一读，只要最新。可对照：`samples/Showcase/Gallery/ThreadingLab`。
+
+**与** **`SceneOperationScope`** **分工**
+
+| 组件                    | 作用                                    |
+| --------------------- | ------------------------------------- |
+| `IUiDispatcher`       | 在哪条线程跑                                |
+| Coalescer / Mailbox   | 同类更新合并几次                              |
+| `SceneOperationScope` | 离场取消异步（`CancellationToken`），**不是**调度器 |
+
+使用约束：
+
+- 绑了 `ItemsSource` 的集合**只能在主线程改**；后台产不可变结果（静态快照），再 `Post` / Mailbox 到主线程一次替换或刷新。
+- 普通属性可在后台 `OnPropertyChanged`；绑定会自行 Post + 合并后写控件。
+- **没有**全局帧预算调度器；Profiler 证明 Post 积压拖慢输入/动画时再考虑。
+
+### 7）全局配置模板
+
+### 可直接复制使用的一套完整的进程级引导：主场景常驻节点上确保 `GodotWindowManager` 存在、初始化 `AppContext`、按需注册窗口池。复制到你的主场景根节点脚本（或 Autoload）即可。
+
+```csharp
+using DotPudica.Godot;
+using DotPudica.Godot.Views;
+using Godot;
+using Microsoft.Extensions.DependencyInjection;
+using AppContext = DotPudica.Godot.AppContext;
+
+public partial class GameBootstrap : Node
+{
+    private AppContext? _app;
+    private GodotWindowManager? _windowManager;
+
+    /// <summary>全局窗口管理器（AppContext.Initialize 之后可用）。</summary>
+    public GodotWindowManager WindowManager => _windowManager
+        ?? throw new InvalidOperationException("GameBootstrap 尚未进树");
+
+    public override void _EnterTree()
     {
-        ViewModel = new PlayerHudViewModel();
-        DotPudicaInitialize();
+        _windowManager = EnsureWindowManager();
+
+        _app = new AppContext().Initialize(services =>
+        {
+            // 1. 跨页共享服务（可选）
+            // services.AddSingleton<IInventoryService, InventoryService>();
+            // 2. 场景级 DI（SceneContextHost）用到的 VM 注册为 Transient
+            // services.AddTransient<MatchViewModel>();
+        }, _windowManager);
+
+        // 3. 窗口池注册（可选，幂等）：频繁开合的弹窗按类型注册容量
+        // _windowManager.ConfigurePool<MyPopupWindow>(maxSize: 4);
+
+        base._EnterTree();
+    }
+
+    /// <summary>确保 WindowManager 存在：场景里已放则用现成的，否则代码创建。</summary>
+    private GodotWindowManager EnsureWindowManager()
+    {
+        var existing = GetNodeOrNull<GodotWindowManager>("WindowManager");
+        if (existing is not null)
+            return existing;
+
+        var placeholder = GetNodeOrNull("WindowManager");
+        placeholder?.QueueFree();
+
+        var wm = new GodotWindowManager { Name = "WindowManager" };
+        AddChild(wm);
+        return wm;
     }
 
     public override void _ExitTree()
     {
-        DotPudicaDispose();
+        _app?.Dispose();   // 会调用 wm.Clear()：收掉栈上窗口 + 销毁池内缓存
+        _app = null;
         base._ExitTree();
     }
 }
 ```
 
-## ViewModel 层写法 - 引擎无关的UI调度者
-
-ViewModel 的职责不是控制节点树，而是描述状态变化和业务意图：
-
-- 把 Godot 场景结构留在 View
-- 把可测试的业务状态留在 ViewModel
-- 通过 `ObservableProperty` 与计算属性组合界面表现
-- 通过 `RelayCommand` 组织交互动作
-- 通过 `Send()` 或 `MessageBus` 推送跨模块消息
-
-推荐样板：
-
-```csharp
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using DotPudica.Core.ViewModels;
-
-public partial class PlayerHudViewModel : ViewModelBase
-{
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HealthPercent), nameof(HealthText))]
-    private double _health = 80;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HealthPercent), nameof(HealthText))]
-    private double _maxHealth = 100;
-
-    public double HealthPercent => MaxHealth <= 0 ? 0 : Health / MaxHealth * 100;
-    public string HealthText => $"HP: {(int)Health}/{(int)MaxHealth}";
-
-    [RelayCommand]
-    private void UsePotion()
-    {
-        Health = Math.Min(MaxHealth, Health + 25);
-    }
-}
-```
-
-## 源码生成 - 源生，启动！
-
-`addons/dot-pudica/SourceGenerator/BindingGenerator.cs` 是 DotPudica 开发体验的关键。它不是一个“帮你少写几行代码”的辅助脚本，而是把 View 的声明式写法翻译成可运行绑定基础设施的编译期引擎。
-
-### 设计目标 - 让样板消失在编译期
-
-DotPudica 的 Source Generator 主要解决三个问题：
-
-1. 避免开发者在每个 View 里重复编写 `BindingContext`、`ViewModel` 属性和初始化代码
-2. 把“控件字段上的绑定声明”转译成实际运行时调用
-3. 在保留 Godot 原生 View 写法的同时，注入 MVVM 所需的运行时骨架
-
-换句话说，开发者编写的是“声明”，生成器补足的是“结构”和“连线”。
-
-### 技术选型 - 为什么使用 Incremental Generator
-
-DotPudica 选择的是 Roslyn `IIncrementalGenerator`，而不是旧式一次性 Generator。原因在于增量生成器更适合 UI 框架这种频繁编辑、频繁编译的开发场景。
-
-它带来的好处包括：
-
-- 只处理相关语法节点，避免全量扫描整个项目
-- 支持语法过滤与语义分析分阶段执行
-- 设计上更适合大型解决方案中的持续增量构建
-- 对 IDE 内即时反馈更友好
-
-在实现上，生成器入口是：
-
-```csharp
-[Generator]
-internal sealed class BindingGenerator : IIncrementalGenerator
-```
-
-初始化阶段通过：
-
-```csharp
-context.SyntaxProvider.CreateSyntaxProvider(...)
-```
-
-构建出一条从语法节点到绑定模型再到输出源码的流水线。
-
-### 生成流程 - 从字段特性到完整运行时骨架
-
-当前生成器的工作流程可以拆成五步：
-
-1. 语法筛选：只看 `partial class`
-2. 粗筛标记：检查类或字段上是否出现 `[DotPudicaView]`、`[BindTo]`、`[BindCommand]`
-3. 语义分析：解析真实符号、ViewModel 类型、字段类型与特性参数
-4. 中间建模：转成 `ViewClassInfo`、`PropertyBindingInfo`、`CommandBindingInfo`
-5. 代码输出：生成 `*.Bindings.g.cs`
-
-它的本质不是直接拼字符串，而是先把 View 的绑定意图提炼成一套中间模型，再由代码生成阶段统一输出。
-
-### 第一步：语法层粗筛 - 先找到可能相关的类
-
-`IsRelevantClass` 的职责是尽量快地排除无关类型。当前筛选规则是：
-
-- 节点必须是 `ClassDeclarationSyntax`
-- 类必须是 `partial`
-- 类上存在 `[DotPudicaView]`
-- 或字段上存在 `[BindTo]` / `[BindCommand]`
-
-这一层只做字符串级判断，不做昂贵的符号解析。它相当于先把“候选样本”挑出来，避免后续语义分析浪费在完全无关的类上。
-
-### 第二步：语义层解析 - 把声明变成准确的结构信息
-
-进入 `TransformClassDeclaration` 后，生成器开始使用 `SemanticModel` 和 `INamedTypeSymbol` 做真正的语义推导。
-
-它会解析出：
-
-- 当前类的命名空间
-- 类名
-- 绑定使用的 ViewModel 类型
-- 是否已经手写 `_Ready()`
-- 是否已经手写 `_ExitTree()`
-- 该类是否自己声明了 `[DotPudicaView]`
-- 所有属性绑定字段
-- 所有命令绑定字段
-
-这里有一个很重要的设计：生成器不仅支持“当前类直接声明 `[DotPudicaView]`”，还支持向上查找基类链，继承祖先 View 的 ViewModel 类型。
-
-对应逻辑体现在：
-
-- `GetOwnAttributeViewModelTypeName`
-- `GetInheritedAttributeViewModelTypeName`
-
-这意味着框架支持一种很实用的继承模式：
-
-- 基类 View 定义通用运行时骨架
-- 子类 View 只补充局部绑定
-
-### 第三步：中间模型 - 先整理结构，再统一出代码
-
-生成器没有把所有信息直接在遍历过程中边读边写，而是先落入几个中间模型：
-
-- `ViewClassInfo`
-- `PropertyBindingInfo`
-- `CommandBindingInfo`
-
-这几个模型的价值很大：
-
-- 让语义分析与代码输出解耦
-- 方便后续扩展新的绑定类型，比如 `[BindItems]`
-- 使生成逻辑更易维护，而不是堆叠大量字符串拼接分支
-
-例如 `PropertyBindingInfo` 中会保存：
-
-- `FieldName`
-- `ControlType`
-- `SourcePath`
-- `BindingMode`
-- `TargetProperty`
-- `SourceEvent`
-- `ConverterType`
-
-这就像先把 View 的“电路图”整理成结构化图纸，再交给输出阶段统一施工。
-
-### 第四步：绑定参数推断 - 把简写声明补全为完整配置
-
-`ParseBindToAttribute` 是生成器很重要的一层智能补全逻辑。它会根据特性参数和控件类型自动推断缺省值。
-
-例如：
-
-- 读取 `[BindTo("Username")]` 中的路径
-- 解析 `Mode`
-- 解析 `TargetProperty`
-- 解析 `SourceEvent`
-- 解析 `Converter`
-
-如果开发者没有显式填写 `TargetProperty` 和 `SourceEvent`，生成器会去查 `Constants.ControlDefaults`，根据控件类型自动推断。
-
-例如：
-
-- `LineEdit` 默认推断为 `Text` + `text_changed`
-- `CheckBox` 默认推断为 `ButtonPressed` + `toggled`
-- `ProgressBar` 默认推断为 `Value`，没有反向输入信号
-
-然后再根据是否存在变化信号推断默认绑定模式：
-
-- 有输入信号则默认 `TwoWay`
-- 没有输入信号则默认 `OneWay`
-
-这一步让开发者在绝大多数情况下只写最短声明，生成器负责把省略的信息补齐。
-
-### 第五步：输出代码 - 生成部分类的隐藏半边
-
-真正的源码输出发生在：
-
-```csharp
-GenerateBindingCode(...)
-GenerateClassSource(...)
-```
-
-这里会为每个命中的 View 生成一个 `ClassName.Bindings.g.cs` 文件。生成结果本质上是原类的另一半 `partial class`。
-
-如果当前类自己拥有 `[DotPudicaView]`，生成器会注入完整运行时骨架：
-
-- `DotPudicaViewRuntime<TViewModel> __dotPudicaView`
-- `BindingContext` 属性
-- `ViewModel` 属性
-- `DotPudicaInitialize()`
-- `DotPudicaDispose()`
-- 需要时自动生成 `_Ready()`
-- 需要时自动生成 `_ExitTree()`
-- `__DotPudicaInitializeBindingsCore()`
-
-如果当前类只是继承自一个已声明 `[DotPudicaView]` 的基类，那么生成器不会重复注入运行时宿主，而是只生成：
-
-- `protected override void __DotPudicaInitializeBindingsCore()`
-
-并在其中先调用：
-
-```csharp
-base.__DotPudicaInitializeBindingsCore();
-```
-
-再补充当前类新增的绑定语句。
-
-这种设计避免了派生类重复持有多个运行时宿主，也为 View 继承体系保留了扩展空间。
-
-### 生成结果长什么样 - 开发者声明与编译器产物的对应关系
-
-假设开发者写下：
-
-```csharp
-[DotPudicaView(typeof(LoginViewModel))]
-public partial class LoginView : Control
-{
-    [Export, BindTo("Username", Mode = BindingMode.TwoWay)]
-    private LineEdit _usernameInput = null!;
-
-    [Export, BindCommand("LoginCommand")]
-    private Button _loginButton = null!;
-}
-```
-
-生成器会产出与下面逻辑等价的代码：
-
-```csharp
-public partial class LoginView
-{
-    protected readonly DotPudicaViewRuntime<LoginViewModel> __dotPudicaView = new();
-
-    public BindingContext BindingContext => __dotPudicaView.BindingContext;
-
-    public LoginViewModel? ViewModel
-    {
-        get => __dotPudicaView.ViewModel;
-        set => __dotPudicaView.ViewModel = value;
-    }
-
-    protected void DotPudicaInitialize()
-    {
-        __DotPudicaInitializeBindingsCore();
-    }
-
-    protected void DotPudicaDispose()
-    {
-        __dotPudicaView.Dispose();
-    }
-
-    protected virtual void __DotPudicaInitializeBindingsCore()
-    {
-        __dotPudicaView.BindProperty(
-            _usernameInput,
-            "Text",
-            "text_changed",
-            "Username",
-            DotPudica.Core.Binding.BindingMode.TwoWay);
-
-        __dotPudicaView.BindCommand(
-            _loginButton,
-            "pressed",
-            "LoginCommand",
-            null);
-    }
-}
-```
-
-这就是 DotPudica 的核心思想：开发者写的是简洁声明，编译器生成的是完整机械结构。
-
-### 与运行时的协作关系 - 编译期不是终点，而是接力点
-
-Source Generator 本身并不直接完成绑定，它做的是“把绑定调用组织好”，真正的绑定发生在运行时。
-
-生成代码最终会调用：
-
-- `DotPudicaViewRuntime<TViewModel>.BindProperty(...)`
-- `DotPudicaViewRuntime<TViewModel>.BindCommand(...)`
-
-运行时再继续把请求分发到：
-
-- `BindingContext`
-- `PropertyBinding`
-- `CommandBinding`
-- `GodotTargetProxyFactory`
-- 各类 `ITargetProxy`
-
-也就是说：
-
-- 编译期负责搭框架和接线图
-- 运行时负责真正通电
-
-这种职责分离非常重要，因为它让框架既拥有声明式开发体验，又不需要把所有逻辑塞进生成器内部。
-
-### 为什么不全靠运行时反射 - 编译期方案的工程收益
-
-如果不使用 Source Generator，框架也可以走一条更传统的路：
-
-- 运行时扫描所有字段
-- 读取特性
-- 动态建立绑定
-
-但这样会带来明显问题：
-
-- 场景进入时要做额外扫描与解析
-- 绑定错误更晚暴露
-- 生命周期样板仍要开发者手写
-- 继承场景与默认推断逻辑更容易散落在多处
-
-DotPudica 选择编译期生成，是希望把这些问题尽量前移：
-
-- 把样板消灭在编译阶段
-- 把声明解析前移到 Roslyn 语义层
-- 把运行时重点留给真正的数据同步与控件交互
-
-### 当前生成器的实现边界 - 已有能力与下一步空间
-
-当前生成器已经完成：
-
-- `[DotPudicaView]` 类级识别
-- `[BindTo]` 属性绑定生成
-- `[BindCommand]` 命令绑定生成
-- 控件默认属性与信号推断
-- 继承链上的 ViewModel 类型追踪
-- `_Ready()` / `_ExitTree()` 自动兜底
-
-当前尚未接入的内容包括：
-
-- `[BindItems]` 集合绑定生成
-- 更细粒度的诊断信息输出
-- 更丰富的生成期错误提示
-- 更复杂的模板化列表场景
-
-DotPudica 的 Source Generator 已经具备搭建单值绑定和命令绑定框架骨架的完整能力，但集合绑定与开发者诊断体验仍有待后续更新完善。
-
-你恍然发现：“原来我也是一个 ~~⚪神~~ 源生高手”
-
-## 运行时绑定层 - 看不见的齿轮组
-
-### `BindingContext`&#x20;
-
-`BindingContext` 负责：
-
-- 持有当前 `DataContext`
-- 管理 `PropertyBinding` 与 `CommandBinding`
-- 在 `DataContext` 切换时自动解绑旧对象并重绑新对象
-
-### `PropertyBinding`&#x20;
-
-`PropertyBinding` 做了几件关键的事：
-
-- 使用 `BindingPath` 读取嵌套路径
-- 监听源对象变化
-- 在 `TwoWay` 模式下监听控件输入
-- 使用 `_isUpdating` 防止循环更新
-- 支持 `IValueConverter`
-
-### `CommandBinding`
-
-`CommandBinding` 把 Button 的 `pressed` 这类 Godot 信号翻译成 `ICommand.Execute()`，并支持：
-
-- `CanExecute`
-- `ParameterPath`
-- 数据上下文切换后的重新订阅
-
-### `ITargetProxy` 与控件代理 - 插头与插座
-
-Godot 控件之间的属性和信号差异很大，DotPudica 通过 `ITargetProxy` 统一适配：
-
-- `LabelProxy`
-- `LineEditProxy`
-- `TextEditProxy`
-- `CheckBoxProxy`
-- `SpinBoxProxy`
-- `SliderProxy`
-- `OptionButtonProxy`
-- `ProgressBarProxy`
-- `TextureRectProxy`
-- `ReflectionProxy`
-
-## 反射代理 - 不只是“害羞”
-
-`ReflectionProxy` 是框架里很实用的保险机制。当某个控件没有专门代理时，框架仍可通过反射读写属性并监听指定信号。
-
-示例 `ReflectionProxySampleView` 展示了这种扩展方式：
-
-```csharp
-[BindTo(nameof(ReflectionProxySampleViewModel.SampleText),
-    Mode = BindingMode.TwoWay,
-    TargetProperty = nameof(ReflectionProbeControl.ValueText),
-    SourceEvent = nameof(ReflectionProbeControl.ValueTextChanged))]
-private ReflectionProbeControl _probe = null!;
-```
-
-## 应用上下文与服务注入 - 含羞草的物语
-
-`AppContext` 与 `ServiceLocator` 提供应用级初始化入口：
-
-```csharp
-using DotPudica.Godot;
-using Microsoft.Extensions.DependencyInjection;
-
-public partial class GameRoot : Node
-{
-    private AppContext? _app;
-
-    public override void _Ready()
-    {
-        _app = new AppContext().Initialize(services =>
-        {
-            services.AddSingleton<IInventoryService, InventoryService>();
-            services.AddTransient<LoginViewModel>();
-        });
-    }
-
-    public override void _ExitTree()
-    {
-        _app?.Dispose();
-    }
-}
-```
-
-## 日志与消息总线 - 全局神经信号
-
-### 日志
-
-`LogManager` 提供统一日志入口：
-
-- 编辑器外可退回 `ConsoleLog`
-- Godot 环境中可切换到 `GodotLogFactory`
-- ViewModel 不需要直接依赖 `GD.Print`
-
-### 消息总线
-
-`MessageBus` 基于 CommunityToolkit 的 `Messenger`，提供：
-
-- 默认弱引用消息总线，降低内存泄漏风险
-- 全局通知型通信
-- UI 层之间的低耦合解耦
-
-## 示例场景 - `DotPudicaSamples`
-
-&#x20;
-
-### 登录界面 - 表单与异步交互
-
-位置：`DotPudicaSamples/LoginScreen`
-
-验证目标：
-
-- `LineEdit <-> ViewModel` 双向绑定
-- `Label <- ViewModel` 单向错误提示
-- `ProgressBar <- bool` 转换器绑定
-- `Button -> ICommand` 命令绑定
-- 异步命令状态切换
-- 登录成功后的消息广播
-
-### 设置面板 - 参数面板
-
-位置：`DotPudicaSamples/SettingsPanel`
-
-验证目标：
-
-- `HSlider` 双向绑定数值
-- `CheckBox` 双向绑定布尔值
-- `OptionButton` 双向绑定索引
-- 计算属性联动刷新
-- `SaveCommand` 执行与消息分发
-
-### HUD 面板 - 实时数值表现
-
-位置：`DotPudicaSamples/HUD`
-
-验证目标：
-
-- 单向数据展示
-- 计算属性驱动 UI
-- 输入触发 ViewModel 状态变化
-- 玩家死亡消息广播
-
-### ReflectionProxy 样例 - 扩展控件
-
-位置：`DotPudicaSamples/ReflectionProxy`
-
-验证目标：
-
-- 自定义控件反射绑定
-- `DotPudicaDispose()` 后解绑有效性
-- 多轮创建销毁下的稳定性
-- 粗粒度内存漂移观测
-
-### Inventory MVVM Test - 多视图共享状态
-
-位置：`DotPudicaSamples/InventoryMvvmTest`
-
-验证目标：
-
-- 两个 View 共享同一 `InventoryTestViewModel`
-- `BindingContext.DataContextChanged` 驱动重绑
-- `ObservableCollection` 变化驱动 UI 重绘
-- 拖拽、放置校验、增删同步
-
-## 核心脚本说明：
-
-| 文件                                                                 | 作用                     |
-| ------------------------------------------------------------------ | ---------------------- |
-| `addons/dot-pudica/Core/ViewModels/ViewModelBase.cs`               | ViewModel 生命周期、日志、消息基类 |
-| `addons/dot-pudica/Core/ViewModels/ValidatableViewModelBase.cs`    | 表单校验型 ViewModel 基类     |
-| `addons/dot-pudica/Core/Binding/BindingContext.cs`                 | 管理 DataContext 与绑定生命周期 |
-| `addons/dot-pudica/Core/Binding/PropertyBinding.cs`                | 属性绑定与命令绑定核心实现          |
-| `addons/dot-pudica/Godot/Views/DotPudicaViewRuntime.cs`            | View 运行时宿主，承接生成代码      |
-| `addons/dot-pudica/Godot/Binding/GodotTargetProxyFactory.cs`       | 控件代理工厂与反射兜底入口          |
-| `addons/dot-pudica/Godot/Binding/ControlProxies/ControlProxies.cs` | 常见 Godot 控件代理          |
-| `addons/dot-pudica/SourceGenerator/BindingGenerator.cs`            | 编译期生成绑定骨架              |
-| `addons/dot-pudica/SourceGenerator/Constants.cs`                   | 控件默认属性与信号映射表           |
-| `addons/dot-pudica/Godot/AppContext.cs`                            | 框架初始化、日志切换、DI 接入       |
-
-## 技术亮点 - 把繁琐驯化成顺手的工具
-
-### 1. 编译期生成替代运行时拼接
-
-DotPudica 更偏向“编译期预装配”，让 View 保持声明式，同时避免每次进入场景都重复扫描结构。
-
-### 2. 控件代理隔离引擎差异
-
-通过 `ITargetProxy`，Godot 控件不一致的属性名与信号名被隔离在适配层，不会污染核心绑定模型。
-
-### 3. 自定义控件拥有平滑扩展路径
-
-即使没有专用代理，也可先通过 `ReflectionProxy` 跑通，再视需要落为高性能专用代理。
-
-### 4. 与 CommunityToolkit.Mvvm 深度贴合
-
-开发者可以继续使用熟悉的：
-
-- `[ObservableProperty]`
-- `[RelayCommand]`
-- `Messenger`
-- `Ioc`
-
-### 5. 示例驱动设计
-
-当前样例覆盖了登录、设置、HUD、共享库存、自定义控件压力测试等多个典型 UI 场景，让框架不是停在 API 层，而是落到真实交互问题上。
-
-## 当前限制 - 原型机与量产机的距离
-
-为了让您的开发预期更准确，这里明确列出当前限制：
-
-- `[BindItems]` 已定义但尚未接入生成器，集合界面还需手动维护
-- 当前测试以示例场景和手工验证为主，缺少独立测试项目
-- 某些复杂控件仍依赖 `ReflectionProxy`
-- 生成器的诊断体验仍有继续增强空间
-
-## 未来演进 - 含羞草有一个大大的梦想
-
-我在 [Cholopol-Tetris-Inventory-System](https://github.com/Cholopol/Cholopol-Tetris-Inventory-System.git) 的开发实践中已验证了MVVM在面对背包系统这类数据驱动的复合视图时的合理性与易用性。而在游戏开发领域，传统OOP的MVVM并不万能，以Viewmodel来说，一个物品可能会包含很多无关字段，比如一个不可堆叠的物品却持有堆叠相关字段，导致Viewmodel不可避免地成为了一个胖对象，对CPU访问不友好，在内存性能敏感的场景下更不可接受。由此而导致的cache miss在面对在大量的物品实例时会造成一定程度的性能损失。具体如整理背包功能，要实现这个功能很简单，现成的算法，AI一句话的事，在MVVM架构中就涉及了大量的事件调用。在一些MVVM框架的数据绑定所依赖的表达式树的初始化时会造成瞬时较高的性能压力、批量修改状态会造成很大的GC压力。在Cholopol-Tetris-Inventory-System的实践中一开始我也面临“组件”VS“对象”的取舍，查表法的InventoryTreeCache仍然是OOP思想的一种体现，分散的引用对象是对MVVM的一种妥协，由此造成的运行时、缓存与持久化数据的数据同步问题远比性能问题更为突出。
-
-如果我们分析运行时性能会发现其实性能并不是一个问题，但上层的代码管理则是一个明显的问题。我们不应该依靠上层而要从基础架构出发来解决这一问题。MVVM很成熟，它的数据绑定方式是UI系统的通解，但游戏开发中涉及到大量数据驱动的动态复合视图，这时一点小问题也会在开发中以及运行时导致更大的问题。
-
-不要兼容的妥协，而是要原生的优雅。DotPudica采用更现代的源生成器技术来规避反射/表达式树，并进一步追求面向数据的混合架构，它诞生于追求硬核体验的类塔科夫背包系统的仿制实现，并且也将致力于实现硬核的游戏UI架构。
-
-后续最值得继续推进的方向包括：
-
-- 不止于MVVM，而是基于Godot版的 Cholopol-Tetris-Inventory-System 开发实践持续探索响应式游戏UI混合架构
-- 完整落地 `[BindItems]` 的集合模板绑定
-- 为更多 Godot 控件提供专用代理，适配 gdscript 编写View视图层
-- 强化窗口管理和导航体系
-- 提升生成器诊断、错误提示与开发期可观测性
-- 敏感的性能追求
-
-## 贡献指南
-
-DotPudica 欢迎任何形式的贡献，包括但不限于 bug 修复、功能扩展、文档完善、示例丰富。
-
-### 提交流类型
-
-| 类型            | 说明                 |
-| ------------- | ------------------ |
-| Bug Fix       | 修复框架中的错误行为         |
-| New Feature   | 新增功能或特性            |
-| Control Proxy | 为更多 Godot 控件添加专用代理 |
-| Example       | 添加新的示例场景           |
-| Documentation | 文档、注释、README 完善    |
-| Performance   | 性能优化相关改进           |
-
-### 开发环境要求
-
-- Godot 4.6+（.NET 集成版）
-- .NET 8.0 SDK
-- Visual Studio 2022 / Rider 或任意支持 C# 12 的编辑器
-
-### 开发流程
-
-**1. Fork & Clone**
-
-```bash
-git clone https://github.com/YOUR_USERNAME/dot-pudica-framework.git
-cd dot-pudica-framework
-git checkout -b feature/your-feature-name
-```
-
-**2. 创建示例场景（可选）**
-
-新功能强烈建议附带可运行的示例：
+场景节点树（主场景）：
 
 ```text
-DotPudicaSamples/YourFeatureName/
-├── YourView.cs
-├── YourView.cs.uid
-├── YourViewModel.cs
-└── YourViewModel.cs.uid
+Main (GameBootstrap)      ← 主场景根，常驻分支
+  └── WindowManager       ← 全局窗口栈 / 窗口池（也可在编辑器里手动放）
 ```
 
-参考现有示例的目录结构和代码风格。
+要点：
 
-**3. 运行验证**
+- **只挂常驻分支**：Bootstrap 与 WindowManager 必须位于主场景根 / Autoload 下，不要挂在会被场景切换卸载的页面分支里。
+- **顺序**：`AppContext.Initialize` 与 `ConfigurePool` 在任何 `Show` / `ShowPooled` 之前完成；任何 `SceneContextHost` 进树之前 `Initialize` 必须已完成。
+- **一次性**：`AppContext` 进程内只初始化一次，重复 `Initialize` 抛错；`Current` 未初始化时访问抛错。
+- **DI 可注入**：`Initialize` 已把管理器注册为 `IWindowManager` 单例——页面可用 `[Inject] IWindowManager` 取用，不必静态访问 `AppContext.Current.WindowManager`。
+- **池跨场景**：窗口池是管理器级的，回收节点可在任意场景复用；场景切换想清掉旧场景残留在栈上的窗口，在切换点调 `wm.Clear(predicate)`（或 `wm.Clear()`，后者同时销毁池内缓存）。
+- **Autoload 备选**：不想在主场景里放 Bootstrap 时，把同样逻辑放进 Godot Autoload 单例节点的 `_EnterTree`（Autoload 跨场景常驻，语义等同进程级）。
 
-- 使用 Godot 打开项目，运行 `DotPudicaSamples/test.tscn` 确认新示例正常展示
-- 确保 `dotnet build` 编译通过，无警告
+### 8）生命周期
 
-**4. 提交规范**
+| 概念                                                          | 作用                                                                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `[DotPudicaView(typeof(TVM))]`                              | 声明式页面：`InitializeView()` 自动完成注入 → 建 VM → 绑定 → 订阅 → 销毁                      |
+| `_Ready => InitializeView()` / `_ExitTree => DisposeView()` | 必需的两行 Godot 覆盖（Godot 只分发用户源码中的虚方法）                                         |
+| `OnViewReady / OnViewModelBound / OnViewDisposing`          | 可选 `partial void` 钩子，插入生命周期关键节点                                            |
+| `[Subscribe("Event")]`                                      | 自动订阅/退订 VM 事件，杜绝泄漏                                                         |
+| `[ViewModelFactory]`                                        | 非 DI 可解析 VM 的工厂方法兜底                                                        |
+| `Pooled = true`                                             | 池化视图/窗口：生成 `RecycleView()`，`_ExitTree => RecycleView()`（解绑+退订+断 VM，节点存活复用） |
+| `ActivateViewModel(vm)`                                     | 池化视图（`AutoInitialize = false`）重绑入口：External 接线 + 重新初始化（含重订阅）               |
+| `ConfigurePool<T>(maxSize)` / `ShowPooled<T>()`             | 窗口管理器按类型注册池 / 显示池化窗口（Dismiss 自动回收；池满/兜底销毁）                                 |
+| `AutoInitialize = false`                                    | 共享面板：手动 `SetViewModel(vm, External)` + `DotPudicaInitialize()`             |
+| `SceneContextHost`                                          | 框架 Node，**需手动挂到场景根**；进树开 Scope，退树拆掉（不挂则无场景级 DI/取消）                         |
+| `AppContext`                                                | 进程级根 DI + 可选 WindowManager                                                 |
+| `IUiDispatcher` / `Post`                                    | 绑定与业务把 UI 工作投回 Godot 主线程；已在主线程则同步执行                                        |
+| `LatestSnapshotMailbox<T>`                                  | 后台只保留最新不可变快照，主线程按需 Drain 一次应用                                              |
 
-```text
-<type>(<scope>): <subject>
+***
 
-[optional body]
+## 构建与验证
 
-[optional footer]
+本仓库自带完整样例与测试，改动框架或样例后请用以下命令验证：
+
+```powershell
+dotnet build DotPudicaFramework.sln
+# 编辑器 F5；或设置 GODOT_BIN 后 headless 集成测试：
+& $env:GODOT_BIN --headless --path . res://tests/DotPudica.Integration/IntegrationTestRunner.tscn
 ```
 
-类型前缀：
+单元测试：
 
-| 类型         | 使用场景        |
-| ---------- | ----------- |
-| `feat`     | 新功能         |
-| `fix`      | bug 修复      |
-| `docs`     | 文档改动        |
-| `style`    | 代码格式（不影响功能） |
-| `refactor` | 重构          |
-| `perf`     | 性能优化        |
-| `test`     | 测试相关        |
-| `chore`    | 构建/工具变更     |
-
-示例：
-
-```text
-feat(binditems): add ObservableCollection change detection
-
-- implement CollectionChanged handler in InventoryPanelView
-- add CreateItemView / RemoveItemView template methods
-- close #12
+```powershell
+dotnet test tests/DotPudica.Tests/DotPudica.Tests.csproj
 ```
 
-**5. Pull Request 注意事项**
+***
 
-- PR 描述清晰说明改动目的和影响范围
-- 关联相关 issue（如果有）
-- 确保所有现有示例仍能正常编译运行
-- 新增功能尽量附带场景测试或集成自动化测试
+## 版本 v1.1.0 说明
 
-### 代码风格约定
+- 声明式 View 生命周期：`[DotPudicaView]` 单特性声明完整页面 —— 源生成器自动完成
+  服务注入（`[Inject]`）、编译期 VM 工厂、事件订阅/退订（`[Subscribe]`）、
+  `InitializeView()`/`DisposeView()` 生命周期接线（钩子 `OnViewReady`/`OnViewModelBound`/`OnViewDisposing`），
+  共享面板用 `AutoInitialize = false`；虚拟列表可用 `[ItemsSource]` 声明式绑定。
+- 对象池化：`[DotPudicaView(Pooled = true)]` 视图（`NodePool` 持有方自持）与窗口
+  （管理器 `ConfigurePool`/`ShowPooled`，Dismiss 自动回收）支持回收复用——回收不销毁节点，
+  解绑/退订/断 VM 后入池，池满 `QueueFree` 销毁；窗口每次激活创建全新 Owned VM。
+- UI 线程：绑定经 `IUiDispatcher` 回主线程写控件，目标侧更新经 Coalescer 合并最新一次；
+  高频业务快照可用 `LatestSnapshotMailbox`；无全局帧预算调度器。
+- Godot 只分发用户源码声明的虚方法，因此每个 View 需两行 `_Ready => InitializeView()` /
+  `_ExitTree => DisposeView()`（漏写报 `DOTPUDICA046`）。
+- 对于 AOT 支持：桌面路径已验证（含 headless 集成测试）；iOS 导出 NativeAOT 下 Godot 指标场景已实证（见 [RESULTS_IOS.md](benchmarks/report/RESULTS_IOS.md)）。
+- 完整导航栈不在框架技术路线范围内，推荐窗口 + 场景组合。
+- Model / 领域建模亦不在框架技术路线范围内：跨页数据用 Singleton 服务，领域类型用普通 .NET 类即可。
+- 本框架在探索集成类似ECS的实体组件系统，它更偏向于追求灵活可追溯的数据管理方式。
 
-- C# 代码遵循 `.editorconfig` 配置
-- View 层代码风格参考现有示例，命名清晰、分段合理
-- ViewModel 遵循基类约定
-- 公共 API 添加 XML 文档注释
-- 避免在核心层引入 Godot 特定依赖，保持 Core 层平台无关
+## 贡献
 
-### 框架架构共识
+- 稳定发布线：`master`
+- 社区 PR 请提向 `v1.x`（版本管理与合并线；详见 [CONTRIBUTING.md](CONTRIBUTING.md)）
 
-贡献代码前请理解框架的核心设计原则：
+## 许可证
 
-1. **Core 层平台无关**：`addons/dot-pudica/Core` 不应引用任何 Godot 类型
-2. **Godot 适配层隔离**：`addons/dot-pudica/Godot` 负责所有平台特定逻辑
-3. **源码生成优先**：能通过编译期生成的代码，不留到运行时
-4. **显式优于隐式**：生命周期和资源清理必须清晰可见
-5. **示例即文档**：新功能必须有配套可运行的示例场景
-
-### 讨论渠道
-
-- GitHub Issues：功能讨论、bug 报告
-- GitHub Discussions：架构设计、方向规划
-
-### 许可证
-
-本项目基于 MIT 许可证开源。贡献代码即表示您同意您的代码将按照同一许可证发布。
+MIT。

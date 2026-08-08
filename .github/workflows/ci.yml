@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, v1.x]
+  pull_request:
+    branches: [main, master, v1.x]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore DotPudicaFramework.sln
+
+      - name: Unit tests
+        run: dotnet test tests/DotPudica.Tests/DotPudica.Tests.csproj --no-restore --verbosity normal
+
+      - name: Build framework
+        run: dotnet build DotPudicaFramework.csproj --no-restore
+
+      - name: Setup Godot .NET
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.1
+          use-dotnet: true
+          include-templates: false
+
+      - name: Godot headless integration tests
+        env:
+          GODOT_BIN: godot
+        run: |
+          set -e
+          "$GODOT_BIN" --headless --path . res://tests/DotPudica.Integration/IntegrationTestRunner.tscn
+        shell: bash
+
+      - name: Docs version consistency
+        run: |
+          set -e
+          grep -q 'Godot.NET.Sdk/4.7.1' DotPudicaFramework.csproj
+          grep -qE '^version="' addons/dot-pudica/plugin.cfg
+          test -f VERSION
+          test -f tests/DotPudica.Integration/IntegrationTestRunner.tscn
+        shell: bash

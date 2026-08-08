@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="DotPudicaFramework"
-run/main_scene="uid://r802tubbej1u"
-config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+run/main_scene="uid://bd33peie2t83t"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [dotnet]
 
@@ -29,3 +29,4 @@ enabled=PackedStringArray("res://addons/dot-pudica/plugin.cfg")
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true

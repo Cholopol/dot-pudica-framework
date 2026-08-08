@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://bd33peie2t83t"]
+
+[ext_resource type="Script" uid="uid://c386uunpyvbao" path="res://samples/Showcase/ShowcaseBootstrap.cs" id="1_boot"]
+[ext_resource type="Script" uid="uid://cr1sumtaotg25" path="res://samples/Showcase/ShowcaseShellView.cs" id="2_shell"]
+
+[node name="ShowcaseBootstrap" type="Node" unique_id=1313882052]
+script = ExtResource("1_boot")
+
+[node name="Shell" type="Control" parent="." unique_id=194587244]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_shell")
+
+[node name="WindowManager" type="Node" parent="." unique_id=1994024685]

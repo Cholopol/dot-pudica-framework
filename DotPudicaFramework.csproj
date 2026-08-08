@@ -1,20 +1,35 @@
-<Project Sdk="Godot.NET.Sdk/4.6.1">
+<Project Sdk="Godot.NET.Sdk/4.7.1">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <!-- Editor hot-reload / assembly reload. Keep enabled; export AOT is gated below. -->
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>
 
+  <!-- iOS export is NativeAOT-only; desktop can opt in with /p:PublishAot=true or Godot export that sets it. -->
+  <PropertyGroup Condition=" '$(GodotTargetPlatform)' == 'ios' Or '$(PublishAot)' == 'true' ">
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(PublishAot)' == 'true' ">
+    <TrimmerRootAssembly Include="GodotSharp" />
+    <TrimmerRootAssembly Include="$(AssemblyName)" />
+    <TrimmerRootAssembly Include="DotPudica.Core" />
+    <TrimmerRootAssembly Include="DotPudica.Godot" />
+  </ItemGroup>
+
 <!-- DotPudica:Begin -->
   <PropertyGroup>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/DotPudica.Tests/**;benchmarks/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="addons/dot-pudica/**/*.cs" />
-    <Compile Remove="addons/dot-pudica/**/.godot/**/*.cs" />
+    <Compile Remove="tests/DotPudica.Tests/**/*.cs" />
+    <Compile Remove="benchmarks/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,4 +45,5 @@
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 <!-- DotPudica:End -->
+
 </Project>

@@ -1,4 +1,5 @@
 using DotPudica.Core.Logging;
+using DotPudica.Core.Runtime;
 using DotPudica.Core.Services;
 using DotPudica.Godot.Logging;
 using DotPudica.Godot.Views;
@@ -10,44 +11,22 @@ namespace DotPudica.Godot;
 /// DotPudica application context. Responsible for framework initialization, configuration and disposal.
 /// Should be initialized in Godot's Autoload (singleton node) or the main scene's Node._Ready().
 /// </summary>
-/// <example>
-/// Typical usage (in Autoload singleton node):
-/// <code>
-/// public partial class GameRoot : Node
-/// {
-///     private AppContext _app;
-///
-///     public override void _Ready()
-///     {
-///         _app = new AppContext().Initialize(services =>
-///         {
-///             services.AddSingleton&lt;IPlayerService, PlayerService&gt;();
-///             services.AddTransient&lt;LoginViewModel&gt;();
-///         });
-///     }
-///
-///     public override void _ExitTree()
-///     {
-///         _app.Dispose();
-///     }
-/// }
-/// </code>
-/// </example>
 public sealed class AppContext : IDisposable
 {
     private static AppContext? _current;
+    private static AppContextLifecycle _lifecycle;
     private GodotWindowManager? _windowManager;
-    private bool _disposed;
+    private ServiceProvider? _serviceProvider;
 
-    /// <summary>
-    /// Current application context (global singleton).
-    /// </summary>
     public static AppContext Current => _current
         ?? throw new InvalidOperationException("AppContext is not initialized, please call new AppContext().Initialize() first");
 
     /// <summary>
-    /// Global window manager.
+    /// Root <see cref="IServiceProvider"/> for the process lifetime. Scene scopes should be created from this provider.
     /// </summary>
+    public IServiceProvider Services => _serviceProvider
+        ?? throw new InvalidOperationException("AppContext service provider is not available.");
+
     public GodotWindowManager WindowManager => _windowManager
         ?? throw new InvalidOperationException("WindowManager is not configured, please set windowManagerNode in Initialize");
 
@@ -60,39 +39,69 @@ public sealed class AppContext : IDisposable
         Action<IServiceCollection>? configureServices = null,
         GodotWindowManager? windowManagerNode = null)
     {
-        if (_current != null)
-            throw new InvalidOperationException("AppContext has already been initialized.");
+        if (_lifecycle is not AppContextLifecycle.Uninitialized)
+            throw new InvalidOperationException("AppContext can only be initialized once until disposed or ALC unload resets it.");
 
-        // 1. Initialize logging (switch to Godot backend)
         LogManager.Initialize(new GodotLogFactory());
 
-        // 2. Configure IoC container
-        ServiceLocator.Configure(services =>
+        _serviceProvider = ServiceLocator.Configure(services =>
         {
-            // Register framework services
             services.AddSingleton(this);
 
             if (windowManagerNode != null)
                 services.AddSingleton<IWindowManager>(windowManagerNode);
 
-            // User custom registration
             configureServices?.Invoke(services);
         });
 
-        // 3. Save window manager reference
         _windowManager = windowManagerNode;
 
         _current = this;
+        _lifecycle = AppContextLifecycle.Running;
         return this;
     }
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (_lifecycle is not AppContextLifecycle.Running || !ReferenceEquals(_current, this))
+            return;
+
+        _lifecycle = AppContextLifecycle.Disposing;
+        try
         {
             _windowManager?.Clear();
-            _current = null;
-            _disposed = true;
         }
+        finally
+        {
+            _windowManager = null;
+            // ServiceLocator.Reset (via FrameworkRuntime) owns provider disposal.
+            _serviceProvider = null;
+            _current = null;
+            _lifecycle = AppContextLifecycle.Uninitialized;
+            FrameworkRuntime.Reset();
+        }
+    }
+
+    /// <summary>
+    /// Clears static AppContext state during ALC unload without disposing Godot nodes.
+    /// </summary>
+    internal static void ResetForUnload()
+    {
+        var current = _current;
+        if (current is not null)
+        {
+            current._windowManager = null;
+            current._serviceProvider = null;
+        }
+
+        _current = null;
+        _lifecycle = AppContextLifecycle.Uninitialized;
+    }
+
+    private enum AppContextLifecycle
+    {
+        Uninitialized,
+        Running,
+        Disposing
     }
 }

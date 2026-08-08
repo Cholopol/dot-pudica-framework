@@ -1,32 +1,22 @@
 namespace DotPudica.Core.Binding;
 
-/// <summary>
-/// Data binding mode, defines the synchronization direction of data between source (ViewModel) and target (View control).
-/// </summary>
 public enum BindingMode
 {
     /// <summary>
-    /// Default mode, determined by control type (input controls default to TwoWay, display controls default to OneWay).
+    /// Resolved at compile time by the generator (input → TwoWay, display → OneWay);
+    /// outside the generator behaves as OneWay.
     /// </summary>
     Default = 0,
 
-    /// <summary>
-    /// One-way binding: ViewModel → View.
-    /// </summary>
+    /// <summary>ViewModel → View.</summary>
     OneWay,
 
-    /// <summary>
-    /// Two-way binding: ViewModel ↔ View.
-    /// </summary>
+    /// <summary>ViewModel ↔ View.</summary>
     TwoWay,
 
-    /// <summary>
-    /// One-time binding: only synchronizes once during initial binding.
-    /// </summary>
+    /// <summary>Synchronizes once at bind time only.</summary>
     OneTime,
 
-    /// <summary>
-    /// Reverse one-way binding: View → ViewModel.
-    /// </summary>
+    /// <summary>View → ViewModel.</summary>
     OneWayToSource
 }

@@ -3,16 +3,20 @@ extends EditorPlugin
 
 const HOST_BLOCK_BEGIN := "<!-- DotPudica:Begin -->"
 const HOST_BLOCK_END := "<!-- DotPudica:End -->"
+## Host project fragment kept in sync on every plugin load.
+## Pure .NET unit tests and BenchmarkDotNet project stay excluded.
+## Godot integration tests under tests/DotPudica.Integration must compile in the host.
 const HOST_BLOCK := """<!-- DotPudica:Begin -->
   <PropertyGroup>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/DotPudica.Tests/**;benchmarks/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="addons/dot-pudica/**/*.cs" />
-    <Compile Remove="addons/dot-pudica/**/.godot/**/*.cs" />
+    <Compile Remove="tests/DotPudica.Tests/**/*.cs" />
+    <Compile Remove="benchmarks/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,11 +35,78 @@ const HOST_BLOCK := """<!-- DotPudica:Begin -->
 """
 
 func _enter_tree() -> void:
+    print("[DotPudica] Plugin enabled.")
+    _ensure_unit_tests_gdignore()
+    _ensure_benchmarks_gdignore()
     _update_host_project(true)
 
 
 func _exit_tree() -> void:
-    _update_host_project(false)
+    # Keep host block on editor restart / plugin reload so exclusions like
+    # tests/DotPudica.Tests are never wiped and re-injected from an outdated template.
+    # Removal only happens when the user disables/uninstalls via Project Settings.
+    if not _is_plugin_still_enabled():
+        _update_host_project(false)
+        print("[DotPudica] Plugin disabled; host project block removed if present.")
+    else:
+        print("[DotPudica] Plugin reloading; host project block kept.")
+
+
+func _is_plugin_still_enabled() -> bool:
+    var enabled: PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled", PackedStringArray())
+    var script := get_script() as Script
+    if script == null:
+        return false
+    var plugin_path: String = script.resource_path.get_base_dir().path_join("plugin.cfg")
+    for entry in enabled:
+        if str(entry).replace("\\", "/") == plugin_path.replace("\\", "/"):
+            return true
+    return false
+
+
+func _ensure_unit_tests_gdignore() -> void:
+    # Legacy: whole tests/ was ignored when Integration still lived under samples/.
+    # That would hide Godot integration tests — remove if present.
+    var legacy_ignore := ProjectSettings.globalize_path("res://tests/.gdignore")
+    if FileAccess.file_exists(legacy_ignore):
+        DirAccess.remove_absolute(legacy_ignore)
+        print("[DotPudica] Removed obsolete tests/.gdignore so Integration remains visible.")
+
+    var unit_tests_dir := ProjectSettings.globalize_path("res://tests/DotPudica.Tests")
+    if not DirAccess.dir_exists_absolute(unit_tests_dir):
+        return
+
+    var ignore_path := unit_tests_dir.path_join(".gdignore")
+    if FileAccess.file_exists(ignore_path):
+        return
+
+    var file := FileAccess.open(ignore_path, FileAccess.WRITE)
+    if file == null:
+        push_warning("[DotPudica] Could not create tests/DotPudica.Tests/.gdignore")
+        return
+
+    file.store_string("# Ignore pure .NET unit tests from Godot import / C# UID generation.\n")
+    file.close()
+    print("[DotPudica] Created tests/DotPudica.Tests/.gdignore")
+
+
+func _ensure_benchmarks_gdignore() -> void:
+    var benchmarks_dir := ProjectSettings.globalize_path("res://benchmarks")
+    if not DirAccess.dir_exists_absolute(benchmarks_dir):
+        return
+
+    var ignore_path := benchmarks_dir.path_join(".gdignore")
+    if FileAccess.file_exists(ignore_path):
+        return
+
+    var file := FileAccess.open(ignore_path, FileAccess.WRITE)
+    if file == null:
+        push_warning("[DotPudica] Could not create benchmarks/.gdignore")
+        return
+
+    file.store_string("# Ignore BenchmarkDotNet project from Godot import / C# UID generation.\n")
+    file.close()
+    print("[DotPudica] Created benchmarks/.gdignore")
 
 
 func _update_host_project(enable: bool) -> void:
@@ -51,11 +122,13 @@ func _update_host_project(enable: bool) -> void:
 
     var updated := content
     if enable:
-        updated = _inject_host_block(content)
+        updated = _sync_host_block(content)
     else:
         updated = _remove_host_block(content)
 
     if updated == content:
+        var state := "already synced" if enable else "already absent"
+        print("[DotPudica] Host project configuration %s: %s" % [state, csproj_path])
         return
 
     var file := FileAccess.open(csproj_path, FileAccess.WRITE)
@@ -66,9 +139,8 @@ func _update_host_project(enable: bool) -> void:
     file.store_string(updated)
     file.close()
 
-    var action := "Injected" if enable else "Removed"
+    var action := "Synced" if enable else "Removed"
     print("[DotPudica] %s host project configuration: %s" % [action, csproj_path])
-
 
 func _find_host_csproj() -> String:
     var root := ProjectSettings.globalize_path("res://")
@@ -115,10 +187,35 @@ func _is_plugin_csproj(path: String) -> bool:
     return normalized.contains("/addons/dot-pudica/")
 
 
-func _inject_host_block(content: String) -> String:
-    if content.contains(HOST_BLOCK_BEGIN):
+func _sync_host_block(content: String) -> String:
+    var begin_index := content.find(HOST_BLOCK_BEGIN)
+    if begin_index == -1:
+        return _inject_host_block(content)
+
+    var end_index := content.find(HOST_BLOCK_END, begin_index)
+    if end_index == -1:
+        push_error("[DotPudica] Invalid injected block: missing end marker")
         return content
 
+    end_index += HOST_BLOCK_END.length()
+    while end_index < content.length() and (content[end_index] == "\n" or content[end_index] == "\r"):
+        end_index += 1
+
+    var existing := content.substr(begin_index, end_index - begin_index)
+    var normalized_existing := existing.replace("\r\n", "\n").strip_edges()
+    var normalized_expected := HOST_BLOCK.replace("\r\n", "\n").strip_edges()
+    if normalized_existing == normalized_expected:
+        return content
+
+    var prefix := _trim_right_whitespace(content.substr(0, begin_index))
+    var suffix := _trim_left_newlines(content.substr(end_index))
+    if suffix.is_empty():
+        return "%s\n\n%s\n" % [prefix, HOST_BLOCK]
+
+    return "%s\n\n%s\n%s" % [prefix, HOST_BLOCK, suffix]
+
+
+func _inject_host_block(content: String) -> String:
     var project_close := "</Project>"
     var close_index := content.rfind(project_close)
     if close_index == -1:
@@ -127,7 +224,6 @@ func _inject_host_block(content: String) -> String:
 
     var prefix := _trim_right_whitespace(content.substr(0, close_index))
     return "%s\n\n%s%s" % [prefix, HOST_BLOCK, project_close]
-
 
 func _remove_host_block(content: String) -> String:
     var begin_index := content.find(HOST_BLOCK_BEGIN)

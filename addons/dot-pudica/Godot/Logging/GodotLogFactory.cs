@@ -3,21 +3,12 @@ using Godot;
 
 namespace DotPudica.Godot.Logging;
 
-/// <summary>
-/// Godot GD.Print-based log factory. Inject into LogManager at application startup:
-/// <code>
-/// LogManager.Initialize(new GodotLogFactory());
-/// </code>
-/// </summary>
 public class GodotLogFactory : ILogFactory
 {
     public ILog GetLogger(Type type) => new GodotLog(type.Name);
     public ILog GetLogger(string name) => new GodotLog(name);
 }
 
-/// <summary>
-/// Godot GD.Print-based log implementation.
-/// </summary>
 public class GodotLog : ILog
 {
     private readonly string _name;

@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Framework version without v prefix (e.g. 1.1.0)"
+        required: true
+        type: string
+      notes:
+        description: "Extra release notes (Markdown). #123 links issues/PRs."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  pack-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Derive version
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+            TAG="v${VERSION}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          fi
+          if [[ -z "$VERSION" ]]; then
+            echo "Empty version" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Pack addon zip
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.ver.outputs.version }}"
+          ADDON_SRC="$GITHUB_WORKSPACE/addons/dot-pudica"
+          OUT="$GITHUB_WORKSPACE/artifacts"
+          STAGE="$(mktemp -d)"
+          mkdir -p "$OUT" "$STAGE/addons/dot-pudica"
+          rsync -a --exclude 'bin/' --exclude 'obj/' --exclude '.godot/' \
+            "$ADDON_SRC/" "$STAGE/addons/dot-pudica/"
+          sed -i -E "s/^version=\"[^\"]+\"/version=\"${VERSION}\"/" \
+            "$STAGE/addons/dot-pudica/plugin.cfg"
+          (
+            cd "$STAGE"
+            zip -r "$OUT/dot-pudica-${VERSION}.zip" addons
+          )
+          echo "Wrote $OUT/dot-pudica-${VERSION}.zip"
+        shell: bash
+
+      - name: Build release body
+        id: body
+        env:
+          EXTRA_NOTES: ${{ github.event_name == 'workflow_dispatch' && inputs.notes || '' }}
+        run: |
+          BODY_FILE="$GITHUB_WORKSPACE/artifacts/RELEASE_BODY.md"
+          {
+            echo "## Install"
+            echo
+            echo "Download \`dot-pudica-${{ steps.ver.outputs.version }}.zip\` and extract so the path is \`addons/dot-pudica/\`."
+            echo
+            echo "Do **not** copy \`tests/\`, \`benchmarks/\`, or \`samples/\` into your game."
+            echo
+            if [[ -n "${EXTRA_NOTES}" ]]; then
+              echo "## Notes"
+              echo
+              printf '%s\n' "${EXTRA_NOTES}"
+              echo
+            elif [[ -f "$GITHUB_WORKSPACE/.github/release-notes.md" ]]; then
+              echo "## Notes"
+              echo
+              cat "$GITHUB_WORKSPACE/.github/release-notes.md"
+              echo
+            fi
+            echo "## Compatibility"
+            echo
+            echo "- Godot **4.7.x** .NET"
+            echo "- .NET 8"
+          } > "$BODY_FILE"
+          echo "path=$BODY_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: DotPudica ${{ steps.ver.outputs.version }}
+          body_path: ${{ steps.body.outputs.path }}
+          generate_release_notes: false
+          files: artifacts/dot-pudica-${{ steps.ver.outputs.version }}.zip
+          fail_on_unmatched_files: true
+          target_commitish: ${{ github.sha }}

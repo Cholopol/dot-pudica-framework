@@ -3,80 +3,97 @@ using Microsoft.CodeAnalysis;
 
 namespace DotPudica.SourceGenerator;
 
-/// <summary>
-/// View class information extracted from syntax tree that requires code generation.
-/// </summary>
 internal sealed class ViewClassInfo
 {
-    /// <summary>Full namespace of View class</summary>
     public string Namespace { get; set; } = "";
-
-    /// <summary>View class name</summary>
     public string ClassName { get; set; } = "";
-
-    /// <summary>Generic ViewModel type parameter name (e.g., LoginViewModel)</summary>
     public string ViewModelTypeName { get; set; } = "";
-
-    /// <summary>Whether the class already overrides _Ready().</summary>
+    public string BaseTypeDisplay { get; set; } = "";
+    public INamedTypeSymbol? ViewModelSymbol { get; set; }
     public bool HasReadyOverride { get; set; }
-
-    /// <summary>Whether the class already overrides _ExitTree().</summary>
     public bool HasExitTreeOverride { get; set; }
-
-    /// <summary>Whether this class declares the DotPudica view attribute itself and owns the runtime members.</summary>
+    public bool CallsInitializeView { get; set; }
+    public bool CallsDisposeView { get; set; }
+    public bool CallsRecycleView { get; set; }
     public bool OwnsDotPudicaRuntime { get; set; }
-
-    /// <summary>All fields marked with [BindTo]</summary>
-    public List<PropertyBindingInfo> PropertyBindings { get; } = new();
-
-    /// <summary>All fields marked with [BindCommand]</summary>
-    public List<CommandBindingInfo> CommandBindings { get; } = new();
+    public Location? Location { get; set; }
+    public List<PropertyBindingInfo> PropertyBindings { get; set; } = new();
+    public List<CommandBindingInfo> CommandBindings { get; set; } = new();
+    public List<CollectionBindingInfo> CollectionBindings { get; set; } = new();
+    public string OwnershipExpression { get; set; } = "DotPudica.Core.ViewModels.ViewModelOwnership.Owned";
+    public bool AutoInitialize { get; set; } = true;
+    public bool Pooled { get; set; }
+    public bool HasFactoryMethod { get; set; }
+    public bool HasFactoryDeclaration { get; set; }
+    public string FactoryMethodName { get; set; } = "";
+    public string? ViewModelConstructorArgs { get; set; }
+    public List<InjectInfo> Injections { get; set; } = new();
+    public List<SubscribeInfo> Subscriptions { get; set; } = new();
 }
 
-/// <summary>
-/// Description of a single [BindTo] binding.
-/// </summary>
+internal sealed class InjectInfo
+{
+    public string MemberName { get; set; } = "";
+    public string TypeDisplay { get; set; } = "";
+    public bool IsWritable { get; set; }
+    public Location? Location { get; set; }
+}
+
+internal sealed class SubscribeInfo
+{
+    public string EventPath { get; set; } = "";
+    public string HandlerName { get; set; } = "";
+    public List<ISymbol>? EventPathMembers { get; set; }
+    public Location? Location { get; set; }
+}
+
 internal sealed class PropertyBindingInfo
 {
-    /// <summary>Field name (e.g., usernameInput)</summary>
     public string FieldName { get; set; } = "";
-
-    /// <summary>Godot control type short name (e.g., LineEdit)</summary>
     public string ControlType { get; set; } = "";
-
-    /// <summary>ViewModel property path (e.g., "Account.Username")</summary>
+    public string ControlTypeFullName { get; set; } = "";
     public string SourcePath { get; set; } = "";
-
-    /// <summary>Binding mode (e.g., "BindingMode.TwoWay")</summary>
     public string BindingMode { get; set; } = "DotPudica.Core.Binding.BindingMode.Default";
-
-    /// <summary>Target control property name (e.g., "Text"), null to infer from control type</summary>
     public string? TargetProperty { get; set; }
-
-    /// <summary>Control change signal name (e.g., "text_changed"), null to infer from control type</summary>
     public string? SourceEvent { get; set; }
-
-    /// <summary>Value converter type name (e.g., "BoolNegateConverter"), null if not used</summary>
     public string? ConverterType { get; set; }
+    public INamedTypeSymbol? ConverterSymbol { get; set; }
+    public Location? Location { get; set; }
+    public List<ISymbol>? PathMembers { get; set; }
+    public string? FinalTypeDisplay { get; set; }
+    public ITypeSymbol? SourceValueType { get; set; }
+    public ITypeSymbol? TargetValueType { get; set; }
+    public bool TargetPropertyWritable { get; set; }
+    public string? BuiltInProxyTypeName { get; set; }
+    public bool SkipGenerate { get; set; }
 }
 
-/// <summary>
-/// Description of a single [BindCommand] binding.
-/// </summary>
 internal sealed class CommandBindingInfo
 {
-    /// <summary>Field name (e.g., loginBtn)</summary>
     public string FieldName { get; set; } = "";
-
-    /// <summary>Godot control type short name (e.g., Button)</summary>
     public string ControlType { get; set; } = "";
-
-    /// <summary>ICommand property name on ViewModel (e.g., "LoginCommand")</summary>
     public string CommandName { get; set; } = "";
-
-    /// <summary>Command parameter path (optional)</summary>
     public string? ParameterPath { get; set; }
-
-    /// <summary>Trigger signal (default "pressed")</summary>
     public string Signal { get; set; } = "pressed";
+    public Location? Location { get; set; }
+    public List<ISymbol>? CommandPathMembers { get; set; }
+    public string? CommandTypeDisplay { get; set; }
+    public List<ISymbol>? ParameterPathMembers { get; set; }
+}
+
+internal sealed class CollectionBindingInfo
+{
+    public string FieldName { get; set; } = "";
+    public string ControlType { get; set; } = "";
+    public string SourcePath { get; set; } = "";
+    public string ItemScene { get; set; } = "";
+    public int PoolSize { get; set; }
+    public Location? Location { get; set; }
+    public List<ISymbol>? PathMembers { get; set; }
+    public string? CollectionTypeDisplay { get; set; }
+    public ITypeSymbol? ElementTypeSymbol { get; set; }
+    public string? ItemCommandPath { get; set; }
+    public List<ISymbol>? ItemCommandPathMembers { get; set; }
+    public ITypeSymbol? ItemCommandParameterType { get; set; }
+    public bool IsVirtualized { get; set; }
 }

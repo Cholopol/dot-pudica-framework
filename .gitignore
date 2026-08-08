@@ -1,19 +1,42 @@
-# Godot 4 editor/cache data
-/.godot/
+# Whitelist mode: ignore everything except the paths below.
+/*
 
-# Godot export/build output
-/android/
-/export/
-/build/
+# Allowed top-level directories
+!/.github/
+!/addons/
+!/benchmarks/
+!/benchmarks/**
+!/samples/
+!/tests/
 
-# .NET build artifacts
+# Benchmark raw outputs (keep report SVGs / markdown)
+/benchmarks/artifacts/
+
+# Allowed top-level files
+!/.editorconfig
+!/.gitattributes
+!/.gitignore
+!/CONTRIBUTING.md
+!/DotPudicaFramework.csproj
+!/DotPudicaFramework.sln
+!/LICENSE
+!/README.md
+!/README_CN.md
+!/VERSION
+!/project.godot
+
+# Ignore build/editor noise inside allowed trees
+**/.godot/
 **/bin/
 **/obj/
+**/android/
+**/export/
+**/build/
 
 # IDE and local workspace files
-/.vs/
-/.vscode/
-/.idea/
+**/.vs/
+**/.vscode/
+**/.idea/
 *.suo
 *.user
 *.userosscache
@@ -22,3 +45,4 @@
 # OS-generated files
 Thumbs.db
 .DS_Store
+**/._*

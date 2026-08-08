@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/DotPudica.Integration/Fixtures/IntegrationItemCommandView.cs" id="1_item"]
+
+[node name="IntegrationItemCommand" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 24)
+script = ExtResource("1_item")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+text = "item"
+
+[node name="SelectButton" type="Button" parent="."]
+layout_mode = 2
+text = "Select"

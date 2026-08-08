@@ -2,124 +2,112 @@ using System.Globalization;
 
 namespace DotPudica.Core.Binding.Converters;
 
-/// <summary>
-/// Boolean negation converter. true ↔ false.
-/// Commonly used in BindingMode.OneWay binding to convert IsLoading → button disabled.
-/// </summary>
-public class BoolNegateConverter : IValueConverter
+public class BoolNegateConverter : IValueConverter, IValueConverter<bool, bool>
 {
     public static readonly BoolNegateConverter Instance = new();
 
-    public object? Convert(object? value, Type targetType, object? parameter)
+    public object? Convert(object? value, Type targetType)
         => value is bool b ? !b : value;
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
+    public object? ConvertBack(object? value, Type targetType)
         => value is bool b ? !b : value;
+
+    bool IValueConverter<bool, bool>.Convert(bool value) => !value;
+
+    bool IValueConverter<bool, bool>.ConvertBack(bool value) => !value;
 }
 
-/// <summary>
-/// Boolean to visibility converter (true = visible, false = invisible).
-/// Corresponds to WPF's BooleanToVisibilityConverter, returns bool here for Godot's .Visible property.
-/// </summary>
-public class BoolToVisibilityConverter : IValueConverter
+/// <summary>Named pass-through for Godot <c>Visible</c> (already bool).</summary>
+public class BoolToVisibilityConverter : IValueConverter, IValueConverter<bool, bool>
 {
     public static readonly BoolToVisibilityConverter Instance = new();
 
-    /// <param name="parameter">When non-null, indicates inversion (false = visible)</param>
-    public object? Convert(object? value, Type targetType, object? parameter)
-    {
-        bool visible = value is bool b && b;
-        return parameter != null ? !visible : visible;
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
+    public object? Convert(object? value, Type targetType)
         => value is bool b && b;
+
+    public object? ConvertBack(object? value, Type targetType)
+        => value is bool b && b;
+
+    bool IValueConverter<bool, bool>.Convert(bool value) => value;
+
+    bool IValueConverter<bool, bool>.ConvertBack(bool value) => value;
 }
 
-/// <summary>
-/// int → string converter.
-/// </summary>
-public class IntToStringConverter : IValueConverter
+public class IntToStringConverter : IValueConverter, IValueConverter<int, string>
 {
     public static readonly IntToStringConverter Instance = new();
 
-    public object? Convert(object? value, Type targetType, object? parameter)
-    {
-        if (value == null) return "";
-        var format = parameter as string;
-        return format != null
-            ? ((IFormattable)value).ToString(format, CultureInfo.CurrentCulture)
-            : value.ToString();
-    }
+    public object? Convert(object? value, Type targetType)
+        => value?.ToString() ?? "";
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
-    {
-        if (int.TryParse(value?.ToString(), out var result))
-            return result;
-        return 0;
-    }
+    public object? ConvertBack(object? value, Type targetType)
+        => int.TryParse(value?.ToString(), out var result) ? result : 0;
+
+    string IValueConverter<int, string>.Convert(int value)
+        => value.ToString(CultureInfo.CurrentCulture);
+
+    int IValueConverter<int, string>.ConvertBack(string value)
+        => int.TryParse(value, out var result) ? result : 0;
 }
 
-/// <summary>
-/// float → string converter, supports format strings.
-/// </summary>
-public class FloatToStringConverter : IValueConverter
+/// <summary>Formats with fixed two decimal places.</summary>
+public class FloatToStringConverter : IValueConverter, IValueConverter<float, string>
 {
     public static readonly FloatToStringConverter Instance = new();
 
-    public object? Convert(object? value, Type targetType, object? parameter)
+    public object? Convert(object? value, Type targetType)
     {
         if (value == null) return "";
-        var format = parameter as string ?? "F2";
-        return ((IFormattable)value).ToString(format, CultureInfo.CurrentCulture);
+        return ((IFormattable)value).ToString("F2", CultureInfo.CurrentCulture);
     }
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
-    {
-        if (float.TryParse(value?.ToString(), out var result))
-            return result;
-        return 0f;
-    }
+    public object? ConvertBack(object? value, Type targetType)
+        => float.TryParse(value?.ToString(), out var result) ? result : 0f;
+
+    string IValueConverter<float, string>.Convert(float value)
+        => value.ToString("F2", CultureInfo.CurrentCulture);
+
+    float IValueConverter<float, string>.ConvertBack(string value)
+        => float.TryParse(value, out var result) ? result : 0f;
 }
 
 /// <summary>
-/// object → string converter (calls ToString()).
+/// Non-nullable <c>object</c>/<c>string</c> typed sides match typical VM property types for BindProperty;
+/// null is still handled on the untyped path.
 /// </summary>
-public class ObjectToStringConverter : IValueConverter
+public class ObjectToStringConverter : IValueConverter, IValueConverter<object, string>
 {
     public static readonly ObjectToStringConverter Instance = new();
 
-    public object? Convert(object? value, Type targetType, object? parameter)
+    public object? Convert(object? value, Type targetType)
         => value?.ToString() ?? "";
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
+    public object? ConvertBack(object? value, Type targetType)
+        => value;
+
+    string IValueConverter<object, string>.Convert(object value)
+        => value?.ToString() ?? "";
+
+    object IValueConverter<object, string>.ConvertBack(string value)
         => value;
 }
 
 /// <summary>
-/// string → bool converter (non-null and non-whitespace = true).
+/// Non-null/non-whitespace → true. Non-nullable typed sides match typical VM property types for BindProperty.
 /// </summary>
-public class StringToBoolConverter : IValueConverter
+public class StringToBoolConverter : IValueConverter, IValueConverter<string, bool>
 {
     public static readonly StringToBoolConverter Instance = new();
 
-    public object? Convert(object? value, Type targetType, object? parameter)
+    public object? Convert(object? value, Type targetType)
         => !string.IsNullOrWhiteSpace(value as string);
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
+    public object? ConvertBack(object? value, Type targetType)
         => value?.ToString() ?? "";
-}
 
-/// <summary>
-/// Equality converter. Returns true when value equals parameter, commonly used for radio button binding to enums.
-/// </summary>
-public class EqualityConverter : IValueConverter
-{
-    public static readonly EqualityConverter Instance = new();
+    bool IValueConverter<string, bool>.Convert(string value)
+        => !string.IsNullOrWhiteSpace(value);
 
-    public object? Convert(object? value, Type targetType, object? parameter)
-        => Equals(value, parameter);
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter)
-        => value is bool b && b ? parameter : null;
+    string IValueConverter<string, bool>.ConvertBack(bool value)
+        => value.ToString();
 }

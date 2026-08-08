@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://samples/Showcase/MiniGame/Battle/BattleLogItemView.cs" id="1_log"]
+
+[node name="BattleLogItem" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 22)
+script = ExtResource("1_log")
+
+[node name="TextLabel" type="Label" parent="."]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "log"
+autowrap_mode = 3

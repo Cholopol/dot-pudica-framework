@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://samples/Showcase/MiniGame/Loadout/LoadoutItemRowView.cs" id="1_item"]
+
+[node name="LoadoutItemRow" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 40)
+script = ExtResource("1_item")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NameLabel" type="Label" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Item name"
+
+[node name="CategoryLabel" type="Label" parent="HBox"]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+text = "Category"
+
+[node name="PowerLabel" type="Label" parent="HBox"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Stats"
+
+[node name="SelectButton" type="Button" parent="HBox"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+text = "Select"

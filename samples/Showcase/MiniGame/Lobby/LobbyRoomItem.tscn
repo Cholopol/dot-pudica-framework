@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://samples/Showcase/MiniGame/Lobby/LobbyRoomItemView.cs" id="1_item"]
+
+[node name="LobbyRoomItem" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 44)
+script = ExtResource("1_item")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="NameLabel" type="Label" parent="HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Room"
+
+[node name="PlayersLabel" type="Label" parent="HBox"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "0/0"

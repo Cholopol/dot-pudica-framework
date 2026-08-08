@@ -1,82 +1,109 @@
 using Godot;
+using DotPudica.Core.ObjectPool;
+using DotPudica.Godot.ObjectPool;
 
 namespace DotPudica.Godot.Views;
 
 /// <summary>
-/// Godot window manager. Manages window stack, window lookup and lifecycle control.
+/// Godot window manager. Owns stack policy, QueuedPopup FIFO, and Full restore.
+/// Scene-tree parenting is the host's job (<c>Prepare*</c>); orphan windows fall back to <see cref="AddChild"/>.
+/// Manager policy branches only on <see cref="WindowType.Full"/> and <see cref="WindowType.QueuedPopup"/>.
 /// </summary>
 public partial class GodotWindowManager : Node, IWindowManager
 {
     private readonly List<IWindow> _windows = new();
     private readonly Queue<IWindow> _queuedPopups = new();
-    private bool _isProcessingQueue;
+    private bool _draining;
+    private bool _stackChangedDuringDrain;
 
-    /// <summary>
-    /// Current top window (last opened active window).
-    /// </summary>
+    private sealed class WindowPoolEntry
+    {
+        public IObjectPool Pool { get; }
+        public int MaxSize { get; }
+
+        public WindowPoolEntry(IObjectPool pool, int maxSize)
+        {
+            Pool = pool;
+            MaxSize = maxSize;
+        }
+    }
+
+    private readonly Dictionary<Type, WindowPoolEntry> _pools = new();
+
+    /// <inheritdoc />
+    public event EventHandler? StackChanged;
+
+    /// <inheritdoc />
     public IWindow? Current => _windows.Count > 0 ? _windows[^1] : null;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Returns a snapshot copy so callers can safely dismiss while enumerating.
+    /// </remarks>
+    public IReadOnlyList<IWindow> Stack
+        => _windows.Count == 0 ? Array.Empty<IWindow>() : _windows.ToArray();
+
+    /// <inheritdoc />
+    public int QueuedCount => _queuedPopups.Count;
 
     /// <summary>
     /// Show window. Handles by WindowType:
-    /// - Full: hide previous window
-    /// - Popup / Dialog: overlay display
-    /// - QueuedPopup: queue and wait
+    /// - Full: hide previous window (or finish its dismiss)
+    /// - Popup / Dialog / Progress: overlay stack (same policy)
+    /// - QueuedPopup: enqueue while another QueuedPopup is visible, or while stack top is still a QueuedPopup (incl. hidden)
     /// </summary>
-    public ITransition Show(IWindow window)
+    public ITransition Show(IWindow window, bool ignoreAnimation = false)
     {
-        if (window.WindowType == WindowType.QueuedPopup && Current != null &&
-            Current.WindowType == WindowType.QueuedPopup)
+        if (window.WindowType == WindowType.QueuedPopup && ShouldEnqueueQueuedPopup())
         {
             _queuedPopups.Enqueue(window);
-            return new GodotTransition((Control)window).DisableAnimation(true);
+            RaiseStackChanged();
+            return CompletedTransition.Instance;
         }
 
-        // Full type window: passivate previous window
-        if (window.WindowType == WindowType.Full && Current != null)
+        // Full: passivate previous window (Hide, or ForceComplete an in-flight Dismiss).
+        if (window.WindowType == WindowType.Full &&
+            Current is { } previous &&
+            !ReferenceEquals(previous, window) &&
+            !previous.Dismissed)
         {
-            Current.Hide(true);
+            if (previous.IsDismissing)
+                previous.Dismiss(ignoreAnimation: true);
+            else
+                previous.Hide(true);
         }
 
         window.WindowManager = this;
 
-        if (!window.Created)
-            window.Create();
+        window.Create();
 
-        _windows.Add(window);
-
-        // If Control node, add to scene tree
-        if (window is Node node && node.GetParent() == null)
+        var added = false;
+        if (!_windows.Contains(window))
         {
-            AddChild(node);
+            _windows.Add(window);
+            window.WindowDismissed += OnWindowDismissed;
+            window.StateChanged += OnWindowStateChanged;
+            added = true;
         }
 
-        var transition = window.Show();
+        // Orphan fallback — hosts should Prepare* before Show when they own parenting.
+        if (window is Node node && node.GetParent() == null)
+            AddChild(node);
 
-        window.WindowDismissed += OnWindowDismissed;
-
+        var transition = window.Show(ignoreAnimation);
+        if (added)
+            RaiseStackChanged();
         return transition;
     }
 
-    /// <summary>
-    /// Hide window.
-    /// </summary>
-    public ITransition Hide(IWindow window)
-    {
-        return window.Hide();
-    }
+    /// <inheritdoc />
+    public ITransition Hide(IWindow window, bool ignoreAnimation = false)
+        => window.Hide(ignoreAnimation);
 
-    /// <summary>
-    /// Dismiss window.
-    /// </summary>
-    public ITransition Dismiss(IWindow window)
-    {
-        var transition = window.Dismiss();
-        return transition;
-    }
+    /// <inheritdoc />
+    public ITransition Dismiss(IWindow window, bool ignoreAnimation = false)
+        => window.Dismiss(ignoreAnimation);
 
-    /// <summary>
-    /// Find window of specified type.
-    /// </summary>
     public T? Find<T>() where T : class, IWindow
     {
         for (int i = _windows.Count - 1; i >= 0; i--)
@@ -87,66 +114,226 @@ public partial class GodotWindowManager : Node, IWindowManager
         return null;
     }
 
-    /// <summary>
-    /// Close all windows.
-    /// </summary>
-    public void Clear()
+    /// <inheritdoc />
+    public void ConfigurePool<TWindow>(int maxSize) where TWindow : GodotWindow, new()
     {
-        _queuedPopups.Clear();
-
-        for (int i = _windows.Count - 1; i >= 0; i--)
+        if (_pools.TryGetValue(typeof(TWindow), out var existing))
         {
-            _windows[i].Dismiss(ignoreAnimation: true);
+            if (existing.MaxSize != maxSize)
+                throw new InvalidOperationException(
+                    $"Window pool for {typeof(TWindow).Name} is already configured with maxSize={existing.MaxSize}.");
+            return;
         }
-        _windows.Clear();
+
+        _pools.Add(typeof(TWindow), new WindowPoolEntry((IObjectPool)NodePool.Create<TWindow>(maxSize), maxSize));
     }
 
-    /// <summary>
-    /// Handle when window is dismissed.
-    /// </summary>
-    private void OnWindowDismissed(object? sender, EventArgs e)
+    /// <inheritdoc />
+    public TWindow ShowPooled<TWindow>(IBundle? bundle = null, bool ignoreAnimation = false)
+        where TWindow : GodotWindow, new()
     {
-        if (sender is not IWindow window)
+        if (!_pools.TryGetValue(typeof(TWindow), out var entry))
+            throw new InvalidOperationException(
+                $"No window pool configured for {typeof(TWindow).Name}; call ConfigurePool first.");
+
+        var window = (TWindow)entry.Pool.Allocate();
+        window.IsPooled = true;
+        if (bundle is not null)
+            window.Create(bundle);
+        Show(window, ignoreAnimation);
+        return window;
+    }
+
+    /// <inheritdoc />
+    public void Clear(Func<IWindow, bool>? predicate = null)
+    {
+        var queueChanged = false;
+        if (predicate is null)
+        {
+            while (_queuedPopups.Count > 0)
+            {
+                ReleaseQueuedWindow(_queuedPopups.Dequeue());
+                queueChanged = true;
+            }
+        }
+        else
+        {
+            var kept = new Queue<IWindow>();
+            while (_queuedPopups.Count > 0)
+            {
+                var next = _queuedPopups.Dequeue();
+                if (predicate(next))
+                {
+                    ReleaseQueuedWindow(next);
+                    queueChanged = true;
+                }
+                else
+                    kept.Enqueue(next);
+            }
+
+            while (kept.Count > 0)
+                _queuedPopups.Enqueue(kept.Dequeue());
+        }
+
+        var snapshot = _windows.ToArray();
+        for (var i = snapshot.Length - 1; i >= 0; i--)
+        {
+            var window = snapshot[i];
+            if (window.Dismissed)
+                continue;
+            if (predicate is not null && !predicate(window))
+                continue;
+
+            window.Dismiss(ignoreAnimation: true);
+        }
+
+        if (queueChanged)
+            RaiseStackChanged();
+
+        if (predicate is null)
+            DisposePoolEntries();
+    }
+
+    private void DisposePoolEntries()
+    {
+        foreach (var entry in _pools.Values)
+            entry.Pool.Dispose();
+        _pools.Clear();
+    }
+
+    private void OnWindowDismissed(object? sender, EventArgs e)
+        => Forget((IWindow)sender!);
+
+    private void OnWindowStateChanged(object? sender, WindowStateEventArgs e)
+    {
+        // Membership unchanged, but stack entry status (e.g. "closing") changed.
+        if (e.NewState == WindowState.DismissBegin)
+            RaiseStackChanged();
+    }
+
+    internal void Forget(IWindow window)
+    {
+        window.WindowDismissed -= OnWindowDismissed;
+        window.StateChanged -= OnWindowStateChanged;
+        if (!_windows.Remove(window))
             return;
 
-        window.WindowDismissed -= OnWindowDismissed;
-        _windows.Remove(window);
-
-        // If top Full window is closed, restore previous Full window
         if (window.WindowType == WindowType.Full)
         {
             var previousFull = _windows.FindLast(w => w.WindowType == WindowType.Full);
-            if (previousFull != null && !previousFull.IsWindowVisible)
-            {
+            if (previousFull != null && !previousFull.IsWindowVisible && !previousFull.Dismissed)
                 previousFull.Show();
-            }
         }
 
-        // Process queued popup windows
         ProcessQueuedPopups();
+        RaiseStackChanged();
+        RecycleIfPooled(window);
     }
 
     /// <summary>
-    /// Process queued popup windows.
+    /// Recycles a dismissed pooled window: detach → reset → cache; QueueFree when the pool
+    /// is gone (manager disposed pools) or full.
     /// </summary>
-    private void ProcessQueuedPopups()
+    private void RecycleIfPooled(IWindow window)
     {
-        if (_isProcessingQueue) return;
-        _isProcessingQueue = true;
-
-        while (_queuedPopups.Count > 0)
+        if (window is not GodotWindow gw || !gw.IsPooled)
+            return;
+        if (!_pools.TryGetValue(window.GetType(), out var entry))
         {
-            // Check if any QueuedPopup is currently being displayed
-            bool hasActiveQueuedPopup = _windows.Exists(
-                w => w.WindowType == WindowType.QueuedPopup && w.IsWindowVisible);
-
-            if (hasActiveQueuedPopup)
-                break;
-
-            var next = _queuedPopups.Dequeue();
-            Show(next);
+            gw.QueueFree();
+            return;
         }
 
-        _isProcessingQueue = false;
+        if (gw.GetParent() is { } parent)
+        {
+            parent.RemoveChild(gw);   // _ExitTree → RecycleView（解绑 + 断 VM + RequestReady）
+        }
+        else
+        {
+            gw.RequestReady();        // 无父节点：_ExitTree 未触发，兜底重武装
+        }
+        gw.ResetForReuse();
+        entry.Pool.Free(gw);
+    }
+
+    private void ProcessQueuedPopups()
+    {
+        if (_draining)
+            return;
+
+        _draining = true;
+        try
+        {
+            while (_queuedPopups.Count > 0)
+            {
+                if (HasVisibleQueuedPopup())
+                    break;
+
+                var next = _queuedPopups.Dequeue();
+                if (next.Dismissed)
+                    continue;
+                if (next is GodotObject godotObj && !GodotObject.IsInstanceValid(godotObj))
+                    continue;
+
+                Show(next);
+            }
+        }
+        finally
+        {
+            _draining = false;
+            if (_stackChangedDuringDrain)
+            {
+                _stackChangedDuringDrain = false;
+                RaiseStackChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Enqueue when a QueuedPopup is already visible, or when stack top is still a QueuedPopup
+    /// (including hidden — preserves FIFO after <see cref="Hide"/>).
+    /// </summary>
+    private bool ShouldEnqueueQueuedPopup()
+        => HasVisibleQueuedPopup()
+           || Current is { WindowType: WindowType.QueuedPopup, Dismissed: false };
+
+    private bool HasVisibleQueuedPopup()
+        => _windows.Exists(w => w.WindowType == WindowType.QueuedPopup && w.IsWindowVisible);
+
+    private static void ReleaseQueuedWindow(IWindow window)
+    {
+        if (window.Dismissed)
+            return;
+
+        if (window is GodotObject godotObj && !GodotObject.IsInstanceValid(godotObj))
+            return;
+
+        if (window.Created || window.IsDismissing)
+        {
+            window.Dismiss(ignoreAnimation: true);
+            return;
+        }
+
+        if (window is Node node)
+            node.QueueFree();
+    }
+
+    private void RaiseStackChanged()
+    {
+        // Coalesce while draining so StackChanged handlers that Dismiss/Clear/Show
+        // cannot re-enter ProcessQueuedPopups and skip remaining queue items.
+        if (_draining)
+        {
+            _stackChangedDuringDrain = true;
+            return;
+        }
+
+        StackChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public override void _ExitTree()
+    {
+        DisposePoolEntries();
+        base._ExitTree();
     }
 }

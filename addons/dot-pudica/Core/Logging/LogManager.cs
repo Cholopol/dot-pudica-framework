@@ -1,8 +1,5 @@
 namespace DotPudica.Core.Logging;
 
-/// <summary>
-/// Log level.
-/// </summary>
 public enum LogLevel
 {
     Debug,
@@ -13,9 +10,8 @@ public enum LogLevel
 }
 
 /// <summary>
-/// Framework log interface. Corresponds to Loxodon's ILog.
-/// Uses lightweight abstraction rather than strong dependency on Microsoft.Extensions.Logging,
-/// convenient for switching log backends in different environments like Godot, console, etc.
+/// Lightweight log abstraction without a Microsoft.Extensions.Logging dependency,
+/// so hosts can swap backends (Godot, console, etc.).
 /// </summary>
 public interface ILog
 {
@@ -37,28 +33,27 @@ public interface ILog
     void Fatal(string message, Exception exception);
 }
 
-/// <summary>
-/// Log factory interface. Corresponds to Loxodon's ILogFactory.
-/// </summary>
 public interface ILogFactory
 {
     ILog GetLogger(Type type);
     ILog GetLogger(string name);
 }
 
-/// <summary>
-/// Log manager. Corresponds to Loxodon's LogManager, serves as global access point.
-/// </summary>
 public static class LogManager
 {
     private static ILogFactory _factory = new DefaultLogFactory();
 
-    /// <summary>
-    /// Replace log factory (configure once at startup, e.g., switch to Godot GD.Print backend).
-    /// </summary>
     public static void Initialize(ILogFactory factory)
     {
         _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+    }
+
+    /// <summary>
+    /// Restore the default console factory so host-specific factories do not pin the ALC.
+    /// </summary>
+    public static void Reset()
+    {
+        _factory = new DefaultLogFactory();
     }
 
     public static ILog GetLogger<T>() => _factory.GetLogger(typeof(T));
@@ -66,18 +61,12 @@ public static class LogManager
     public static ILog GetLogger(string name) => _factory.GetLogger(name);
 }
 
-/// <summary>
-/// Default log factory (writes to Console). Can be replaced with GodotLogFactory in Godot environment.
-/// </summary>
 internal sealed class DefaultLogFactory : ILogFactory
 {
     public ILog GetLogger(Type type) => new ConsoleLog(type.Name);
     public ILog GetLogger(string name) => new ConsoleLog(name);
 }
 
-/// <summary>
-/// Simple log implementation based on Console.WriteLine (suitable for unit testing or non-Godot environments).
-/// </summary>
 internal sealed class ConsoleLog : ILog
 {
     private readonly string _name;

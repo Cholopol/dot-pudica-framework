@@ -1,52 +1,93 @@
+using System.Reflection;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DotPudica.Core.Services;
 
 /// <summary>
-/// Global service locator. Wraps CommunityToolkit.Mvvm's Ioc.Default,
-/// provides a unified entry point for registering and resolving services.
+/// Resettable root <see cref="IServiceProvider"/>; optionally mirrors into Toolkit <see cref="Ioc.Default"/>.
+/// Caller owns the provider returned by <see cref="Configure"/> (or use <see cref="Reset"/>).
 /// </summary>
-/// <example>
-/// Initialization (configure once at game startup):
-/// <code>
-/// ServiceLocator.Configure(services =>
-/// {
-///     services.AddSingleton&lt;IGameService, GameService&gt;();
-///     services.AddTransient&lt;LoginViewModel&gt;();
-/// });
-/// </code>
-/// Usage:
-/// <code>
-/// var service = ServiceLocator.Get&lt;IGameService&gt;();
-/// </code>
-/// </example>
 public static class ServiceLocator
 {
-    /// <summary>
-    /// Configure and initialize the IoC container. Should only be called once at application startup.
-    /// </summary>
-    public static void Configure(Action<IServiceCollection> configure)
+    private static readonly object Gate = new();
+    private static IServiceProvider? _provider;
+
+    public static ServiceProvider Configure(Action<IServiceCollection> configure)
     {
+        ArgumentNullException.ThrowIfNull(configure);
+
         var services = new ServiceCollection();
         configure(services);
-        Ioc.Default.ConfigureServices(services.BuildServiceProvider());
+        var provider = services.BuildServiceProvider();
+        try
+        {
+            lock (Gate)
+            {
+                if (_provider is not null)
+                    throw new InvalidOperationException(
+                        "ServiceLocator has already been configured. Call Reset() before configuring again.");
+
+                TryConfigureToolkitIoc(provider);
+                _provider = provider;
+            }
+
+            return provider;
+        }
+        catch
+        {
+            provider.Dispose();
+            throw;
+        }
     }
 
-    /// <summary>
-    /// Resolve registered services (singleton, transient, etc.).
-    /// </summary>
     public static T Get<T>() where T : class
-        => Ioc.Default.GetRequiredService<T>();
+        => RequireProvider().GetRequiredService<T>();
 
-    /// <summary>
-    /// Try to resolve service, returns null if not registered.
-    /// </summary>
     public static T? TryGet<T>() where T : class
-        => Ioc.Default.GetService<T>();
+        => RequireProvider().GetService<T>();
 
-    /// <summary>
-    /// Get the underlying IServiceProvider, for advanced scenarios.
-    /// </summary>
-    public static IServiceProvider Provider => Ioc.Default;
+    public static IServiceProvider Provider => RequireProvider();
+
+    public static void Reset()
+    {
+        IServiceProvider? provider;
+        lock (Gate)
+        {
+            provider = _provider;
+            _provider = null;
+            ClearToolkitIoc();
+        }
+
+        if (provider is IDisposable disposable)
+            disposable.Dispose();
+    }
+
+    private static IServiceProvider RequireProvider()
+    {
+        var provider = _provider;
+        if (provider is null)
+            throw new InvalidOperationException("ServiceLocator has not been configured yet.");
+        return provider;
+    }
+
+    private static void TryConfigureToolkitIoc(IServiceProvider provider)
+    {
+        try
+        {
+            Ioc.Default.ConfigureServices(provider);
+        }
+        catch (InvalidOperationException)
+        {
+            // Toolkit Ioc has no public Reset; clear private field so hot reload can rebind.
+            ClearToolkitIoc();
+            Ioc.Default.ConfigureServices(provider);
+        }
+    }
+
+    private static void ClearToolkitIoc()
+    {
+        var field = typeof(Ioc).GetField("serviceProvider", BindingFlags.Instance | BindingFlags.NonPublic);
+        field?.SetValue(Ioc.Default, null);
+    }
 }

@@ -1,0 +1,4 @@
+# Keep pure .NET unit tests out of Godot import and UID generation.
+# DotPudicaFramework.csproj also excludes this folder via DefaultItemExcludes.
+# Do NOT place a .gdignore on tests/ — Integration tests under
+# tests/DotPudica.Integration must remain visible to the Godot project.

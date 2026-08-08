@@ -1,30 +1,81 @@
+using System.Threading;
+
 namespace DotPudica.Core.Binding;
 
 /// <summary>
-/// Binding context. Holds DataContext (ViewModel) reference and manages all bindings belonging to this context.
-/// Automatically disconnects old bindings and re-establishes new bindings when DataContext is switched.
+/// Schedules target-side UI work. Core bindings depend only on this small contract,
+/// allowing host adapters to keep UI objects on their required thread.
+/// </summary>
+public interface IUiDispatcher
+{
+    bool CheckAccess();
+    void Post(Action action);
+}
+
+/// <summary>Shared dispatchers for headless tests and UI hosts with a synchronization context.</summary>
+public static class UiDispatcher
+{
+    public static IUiDispatcher Immediate { get; } = new ImmediateUiDispatcher();
+
+    public static IUiDispatcher FromSynchronizationContext(SynchronizationContext context)
+        => new SynchronizationContextUiDispatcher(context);
+
+    public static IUiDispatcher CaptureCurrentOrImmediate()
+        => SynchronizationContext.Current is { } context
+            ? FromSynchronizationContext(context)
+            : Immediate;
+
+    private sealed class ImmediateUiDispatcher : IUiDispatcher
+    {
+        public bool CheckAccess() => true;
+        public void Post(Action action) => action();
+    }
+
+    private sealed class SynchronizationContextUiDispatcher(SynchronizationContext context) : IUiDispatcher
+    {
+        public bool CheckAccess() => ReferenceEquals(SynchronizationContext.Current, context);
+
+        public void Post(Action action)
+        {
+            if (CheckAccess())
+            {
+                action();
+                return;
+            }
+
+            context.Post(static state => ((Action)state!).Invoke(), action);
+        }
+    }
+}
+
+/// <summary>
+/// Owns bindings for one ViewModel. Setting <see cref="DataContext"/> rebinds all registered bindings.
 /// </summary>
 public class BindingContext : IDisposable
 {
-    private readonly List<PropertyBinding> _propertyBindings = new();
-    private readonly List<CommandBinding> _commandBindings = new();
+    private readonly List<IBinding> _bindings = new();
+    private IUiDispatcher _dispatcher = UiDispatcher.Immediate;
     private object? _dataContext;
     private bool _disposed;
 
-    /// <summary>
-    /// DataContext changed event.
-    /// </summary>
     public event EventHandler? DataContextChanged;
 
-    /// <summary>
-    /// Current data context (usually ViewModel).
-    /// When set to a new value, automatically rebinds all registered bindings.
-    /// </summary>
+    /// <summary>Must be set before any bindings are created.</summary>
+    public void SetUiDispatcher(IUiDispatcher dispatcher)
+    {
+        if (_bindings.Count != 0)
+            throw new InvalidOperationException("The UI dispatcher must be set before creating bindings.");
+
+        _dispatcher = dispatcher;
+    }
+
     public object? DataContext
     {
         get => _dataContext;
         set
         {
+            VerifyUiAccess();
+
             if (ReferenceEquals(_dataContext, value))
                 return;
 
@@ -34,79 +85,42 @@ public class BindingContext : IDisposable
         }
     }
 
-    /// <summary>
-    /// Add property binding. Binds immediately if DataContext already exists.
-    /// </summary>
-    public void AddBinding(PropertyBinding binding)
+    public void AddBinding(PropertyBindingBase binding) => AddCore(binding);
+    public void AddBinding(CommandBinding binding) => AddCore(binding);
+    public void AddBinding(CollectionBinding binding) => AddCore(binding);
+    public void AddBinding(VirtualizedCollectionBinding binding) => AddCore(binding);
+
+    private void AddCore(IBinding binding)
     {
-        _propertyBindings.Add(binding);
+        VerifyUiAccess();
+        _bindings.Add(binding);
         if (_dataContext != null)
-        {
             binding.Bind(_dataContext);
-        }
     }
 
-    /// <summary>
-    /// Add command binding. Binds immediately if DataContext already exists.
-    /// </summary>
-    public void AddBinding(CommandBinding binding)
-    {
-        _commandBindings.Add(binding);
-        if (_dataContext != null)
-        {
-            binding.Bind(_dataContext);
-        }
-    }
+    public void RemoveBinding(PropertyBindingBase binding) => RemoveCore(binding);
+    public void RemoveBinding(CommandBinding binding) => RemoveCore(binding);
+    public void RemoveBinding(CollectionBinding binding) => RemoveCore(binding);
+    public void RemoveBinding(VirtualizedCollectionBinding binding) => RemoveCore(binding);
 
-    /// <summary>
-    /// Remove and dispose the specified property binding.
-    /// </summary>
-    public void RemoveBinding(PropertyBinding binding)
+    private void RemoveCore(IBinding binding)
     {
-        if (_propertyBindings.Remove(binding))
-        {
+        VerifyUiAccess();
+        if (_bindings.Remove(binding))
             binding.Dispose();
-        }
     }
 
-    /// <summary>
-    /// Remove and dispose the specified command binding.
-    /// </summary>
-    public void RemoveBinding(CommandBinding binding)
-    {
-        if (_commandBindings.Remove(binding))
-        {
-            binding.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// Clear all bindings.
-    /// </summary>
     public void ClearBindings()
     {
-        foreach (var binding in _propertyBindings)
+        VerifyUiAccess();
+        foreach (var binding in _bindings)
             binding.Dispose();
-        _propertyBindings.Clear();
-
-        foreach (var binding in _commandBindings)
-            binding.Dispose();
-        _commandBindings.Clear();
+        _bindings.Clear();
     }
 
-    /// <summary>
-    /// Disconnect old DataContext and rebind all registered bindings to the new DataContext.
-    /// </summary>
     private void RebindAll()
     {
-        foreach (var binding in _propertyBindings)
-        {
-            binding.Unbind();
-            if (_dataContext != null)
-                binding.Bind(_dataContext);
-        }
-
-        foreach (var binding in _commandBindings)
+        foreach (var binding in _bindings)
         {
             binding.Unbind();
             if (_dataContext != null)
@@ -116,10 +130,18 @@ public class BindingContext : IDisposable
 
     public void Dispose()
     {
+        VerifyUiAccess();
         if (!_disposed)
         {
             ClearBindings();
+            _dataContext = null;
             _disposed = true;
         }
+    }
+
+    private void VerifyUiAccess()
+    {
+        if (!_dispatcher.CheckAccess())
+            throw new InvalidOperationException("Binding context lifecycle operations must be executed on the UI thread.");
     }
 }

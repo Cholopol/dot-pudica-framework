@@ -1,16 +1,20 @@
 using DotPudica.Core.Binding;
+using DotPudica.Godot.Binding;
 using Godot;
 
 namespace DotPudica.Godot.Binding.ControlProxies;
 
-/// <summary>
-/// Label control binding proxy (read-only, no change event).
-/// </summary>
-public class LabelProxy : ITargetProxy
+public class LabelProxy : ITypedTargetProxy<string>, ITargetProxy
 {
     private readonly Label _label;
-    public Type TargetType => typeof(string);
-    event EventHandler? ITargetProxy.ValueChanged
+
+    event EventHandler? ITypedTargetProxy<string>.ValueChanged
+    {
+        add { }
+        remove { }
+    }
+
+    event EventHandler? ITypedTargetProxy<object?>.ValueChanged
     {
         add { }
         remove { }
@@ -18,20 +22,27 @@ public class LabelProxy : ITargetProxy
 
     public LabelProxy(Label label) => _label = label;
 
-    public object? GetValue() => _label.Text;
-    public void SetValue(object? value) => _label.Text = value?.ToString() ?? "";
+    public string GetValue() => _label.Text;
+    public void SetValue(string value) => _label.Text = value;
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+    void ITypedTargetProxy<object?>.SetValue(object? value) => SetValue(value?.ToString() ?? "");
+
     public void Dispose() { }
 }
 
-/// <summary>
-/// RichTextLabel control binding proxy.
-/// </summary>
-public class RichTextLabelProxy : ITargetProxy
+public class RichTextLabelProxy : ITypedTargetProxy<string>, ITargetProxy
 {
     private readonly RichTextLabel _label;
     private readonly bool _useBbcode;
-    public Type TargetType => typeof(string);
-    event EventHandler? ITargetProxy.ValueChanged
+
+    event EventHandler? ITypedTargetProxy<string>.ValueChanged
+    {
+        add { }
+        remove { }
+    }
+
+    event EventHandler? ITypedTargetProxy<object?>.ValueChanged
     {
         add { }
         remove { }
@@ -43,30 +54,24 @@ public class RichTextLabelProxy : ITargetProxy
         _useBbcode = useBbcode;
     }
 
-    public object? GetValue() => _useBbcode ? _label.Text : _label.Text;
-    public void SetValue(object? value)
+    public string GetValue() => _label.Text;
+
+    public void SetValue(string value)
     {
-        var text = value?.ToString() ?? "";
         if (_useBbcode)
-        {
             _label.BbcodeEnabled = true;
-            _label.Text = text;
-        }
-        else
-        {
-            _label.Text = text;
-        }
+        _label.Text = value;
     }
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+    void ITypedTargetProxy<object?>.SetValue(object? value) => SetValue(value?.ToString() ?? "");
+
     public void Dispose() { }
 }
 
-/// <summary>
-/// LineEdit control binding proxy (supports two-way binding).
-/// </summary>
-public class LineEditProxy : ITargetProxy
+public class LineEditProxy : ITypedTargetProxy<string>, ITargetProxy
 {
     private readonly LineEdit _lineEdit;
-    public Type TargetType => typeof(string);
     public event EventHandler? ValueChanged;
 
     public LineEditProxy(LineEdit lineEdit)
@@ -77,20 +82,24 @@ public class LineEditProxy : ITargetProxy
 
     private void OnTextChanged(string newText) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _lineEdit.Text;
-    public void SetValue(object? value) => _lineEdit.Text = value?.ToString() ?? "";
+    public string GetValue() => _lineEdit.Text;
+    public void SetValue(string value) => _lineEdit.Text = value;
 
-    public void Dispose() => _lineEdit.TextChanged -= OnTextChanged;
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+    void ITypedTargetProxy<object?>.SetValue(object? value) => SetValue(value?.ToString() ?? "");
+
+    public void Dispose()
+    {
+        ValueChanged = null;
+        if (GodotObject.IsInstanceValid(_lineEdit))
+            _lineEdit.TextChanged -= OnTextChanged;
+    }
 }
 
-/// <summary>
-/// TextEdit control binding proxy (supports two-way binding).
-/// </summary>
-public class TextEditProxy : ITargetProxy
+public class TextEditProxy : ITypedTargetProxy<string>, ITargetProxy
 {
     private readonly TextEdit _textEdit;
     private Callable? _callable;
-    public Type TargetType => typeof(string);
     public event EventHandler? ValueChanged;
 
     public TextEditProxy(TextEdit textEdit)
@@ -102,24 +111,30 @@ public class TextEditProxy : ITargetProxy
 
     private void OnTextChanged() => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _textEdit.Text;
-    public void SetValue(object? value) => _textEdit.Text = value?.ToString() ?? "";
+    public string GetValue() => _textEdit.Text;
+    public void SetValue(string value) => _textEdit.Text = value;
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+    void ITypedTargetProxy<object?>.SetValue(object? value) => SetValue(value?.ToString() ?? "");
 
     public void Dispose()
     {
-        if (_callable.HasValue)
-            _textEdit.Disconnect("text_changed", _callable.Value);
+        if (_callable is { } callable
+            && GodotObject.IsInstanceValid(_textEdit)
+            && _textEdit.IsConnected("text_changed", callable))
+        {
+            _textEdit.Disconnect("text_changed", callable);
+        }
+
+        _callable = null;
+        ValueChanged = null;
     }
 }
 
-/// <summary>
-/// CheckBox / CheckButton control binding proxy (supports two-way binding).
-/// </summary>
-public class CheckBoxProxy : ITargetProxy
+public class CheckBoxProxy : ITypedTargetProxy<bool>, ITargetProxy
 {
     private readonly BaseButton _button;
     private Callable? _callable;
-    public Type TargetType => typeof(bool);
     public event EventHandler? ValueChanged;
 
     public CheckBoxProxy(BaseButton button)
@@ -131,98 +146,140 @@ public class CheckBoxProxy : ITargetProxy
 
     private void OnToggled(bool pressed) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _button.ButtonPressed;
-    public void SetValue(object? value)
+    public bool GetValue() => _button.ButtonPressed;
+
+    public void SetValue(bool value) => _button.ButtonPressed = value;
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is bool b)
-            _button.ButtonPressed = b;
+            SetValue(b);
     }
 
     public void Dispose()
     {
-        if (_callable.HasValue)
-            _button.Disconnect("toggled", _callable.Value);
+        if (_callable is { } callable
+            && GodotObject.IsInstanceValid(_button)
+            && _button.IsConnected("toggled", callable))
+        {
+            _button.Disconnect("toggled", callable);
+        }
+
+        _callable = null;
+        ValueChanged = null;
     }
 }
 
 /// <summary>
-/// SpinBox control binding proxy (supports two-way binding).
+/// Min/Max/Value are all written through <see cref="GodotRangeBinding"/> for coordinated updates.
+/// Two-way binding only on <see cref="RangeBindingProperty.Value"/>.
 /// </summary>
-public class SpinBoxProxy : ITargetProxy
+public class SpinBoxProxy : ITypedTargetProxy<double>, ITargetProxy
 {
     private readonly SpinBox _spinBox;
+    private readonly RangeBindingProperty _property;
     private Callable? _callable;
-    public Type TargetType => typeof(double);
     public event EventHandler? ValueChanged;
 
-    public SpinBoxProxy(SpinBox spinBox)
+    public SpinBoxProxy(SpinBox spinBox, RangeBindingProperty property = RangeBindingProperty.Value)
     {
         _spinBox = spinBox;
-        _callable = Callable.From<double>(OnValueChanged);
-        _spinBox.Connect("value_changed", _callable.Value);
+        _property = property;
+        if (property == RangeBindingProperty.Value)
+        {
+            _callable = Callable.From<double>(OnValueChanged);
+            _spinBox.Connect("value_changed", _callable.Value);
+        }
     }
 
     private void OnValueChanged(double value) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _spinBox.Value;
-    public void SetValue(object? value)
+    public double GetValue() => GodotRangeBinding.GetProperty(_spinBox, _property);
+
+    public void SetValue(double value) => GodotRangeBinding.SetProperty(_spinBox, _property, value);
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is double d)
-            _spinBox.Value = d;
+            SetValue(d);
         else if (value != null)
-            _spinBox.Value = System.Convert.ToDouble(value);
+            SetValue(Convert.ToDouble(value));
     }
 
     public void Dispose()
     {
-        if (_callable.HasValue)
-            _spinBox.Disconnect("value_changed", _callable.Value);
+        if (_callable is { } callable
+            && GodotObject.IsInstanceValid(_spinBox)
+            && _spinBox.IsConnected("value_changed", callable))
+        {
+            _spinBox.Disconnect("value_changed", callable);
+        }
+
+        _callable = null;
+        ValueChanged = null;
     }
 }
 
 /// <summary>
-/// HSlider / VSlider control binding proxy (supports two-way binding).
+/// Min/Max/Value are all written through <see cref="GodotRangeBinding"/> for coordinated updates.
+/// Two-way binding only on <see cref="RangeBindingProperty.Value"/>.
 /// </summary>
-public class SliderProxy : ITargetProxy
+public class SliderProxy : ITypedTargetProxy<double>, ITargetProxy
 {
     private readonly Slider _slider;
+    private readonly RangeBindingProperty _property;
     private Callable? _callable;
-    public Type TargetType => typeof(double);
     public event EventHandler? ValueChanged;
 
-    public SliderProxy(Slider slider)
+    public SliderProxy(Slider slider, RangeBindingProperty property = RangeBindingProperty.Value)
     {
         _slider = slider;
-        _callable = Callable.From<double>(OnValueChanged);
-        _slider.Connect("value_changed", _callable.Value);
+        _property = property;
+        if (property == RangeBindingProperty.Value)
+        {
+            _callable = Callable.From<double>(OnValueChanged);
+            _slider.Connect("value_changed", _callable.Value);
+        }
     }
 
     private void OnValueChanged(double value) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _slider.Value;
-    public void SetValue(object? value)
+    public double GetValue() => GodotRangeBinding.GetProperty(_slider, _property);
+
+    public void SetValue(double value) => GodotRangeBinding.SetProperty(_slider, _property, value);
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is double d)
-            _slider.Value = d;
+            SetValue(d);
         else if (value != null)
-            _slider.Value = System.Convert.ToDouble(value);
+            SetValue(Convert.ToDouble(value));
     }
 
     public void Dispose()
     {
-        if (_callable.HasValue)
-            _slider.Disconnect("value_changed", _callable.Value);
+        if (_callable is { } callable
+            && GodotObject.IsInstanceValid(_slider)
+            && _slider.IsConnected("value_changed", callable))
+        {
+            _slider.Disconnect("value_changed", callable);
+        }
+
+        _callable = null;
+        ValueChanged = null;
     }
 }
 
-/// <summary>
-/// OptionButton control binding proxy.
-/// </summary>
-public class OptionButtonProxy : ITargetProxy
+public class OptionButtonProxy : ITypedTargetProxy<int>, ITargetProxy
 {
     private readonly OptionButton _optionButton;
     private Callable? _callable;
-    public Type TargetType => typeof(int);
     public event EventHandler? ValueChanged;
 
     public OptionButtonProxy(OptionButton optionButton)
@@ -234,54 +291,86 @@ public class OptionButtonProxy : ITargetProxy
 
     private void OnItemSelected(long index) => ValueChanged?.Invoke(this, EventArgs.Empty);
 
-    public object? GetValue() => _optionButton.Selected;
-    public void SetValue(object? value)
+    public int GetValue() => _optionButton.Selected;
+
+    public void SetValue(int value) => _optionButton.Selected = value;
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is int i)
-            _optionButton.Selected = i;
+            SetValue(i);
     }
 
     public void Dispose()
     {
-        if (_callable.HasValue)
-            _optionButton.Disconnect("item_selected", _callable.Value);
+        if (_callable is { } callable
+            && GodotObject.IsInstanceValid(_optionButton)
+            && _optionButton.IsConnected("item_selected", callable))
+        {
+            _optionButton.Disconnect("item_selected", callable);
+        }
+
+        _callable = null;
+        ValueChanged = null;
     }
 }
 
 /// <summary>
-/// ProgressBar control binding proxy (read-only).
+/// Default OneWay; Min/Max/Value coordinated through <see cref="GodotRangeBinding"/>.
 /// </summary>
-public class ProgressBarProxy : ITargetProxy
+public class ProgressBarProxy : ITypedTargetProxy<double>, ITargetProxy
 {
     private readonly ProgressBar _progressBar;
-    public Type TargetType => typeof(double);
-    event EventHandler? ITargetProxy.ValueChanged
+    private readonly RangeBindingProperty _property;
+
+    event EventHandler? ITypedTargetProxy<double>.ValueChanged
     {
         add { }
         remove { }
     }
 
-    public ProgressBarProxy(ProgressBar progressBar) => _progressBar = progressBar;
+    event EventHandler? ITypedTargetProxy<object?>.ValueChanged
+    {
+        add { }
+        remove { }
+    }
 
-    public object? GetValue() => _progressBar.Value;
-    public void SetValue(object? value)
+    public ProgressBarProxy(ProgressBar progressBar, RangeBindingProperty property = RangeBindingProperty.Value)
+    {
+        _progressBar = progressBar;
+        _property = property;
+    }
+
+    public double GetValue() => GodotRangeBinding.GetProperty(_progressBar, _property);
+
+    public void SetValue(double value) => GodotRangeBinding.SetProperty(_progressBar, _property, value);
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is double d)
-            _progressBar.Value = d;
+            SetValue(d);
         else if (value != null)
-            _progressBar.Value = System.Convert.ToDouble(value);
+            SetValue(Convert.ToDouble(value));
     }
+
     public void Dispose() { }
 }
 
-/// <summary>
-/// TextureRect control binding proxy.
-/// </summary>
-public class TextureRectProxy : ITargetProxy
+public class TextureRectProxy : ITypedTargetProxy<Texture2D?>, ITargetProxy
 {
     private readonly TextureRect _textureRect;
-    public Type TargetType => typeof(Texture2D);
-    event EventHandler? ITargetProxy.ValueChanged
+
+    event EventHandler? ITypedTargetProxy<Texture2D?>.ValueChanged
+    {
+        add { }
+        remove { }
+    }
+
+    event EventHandler? ITypedTargetProxy<object?>.ValueChanged
     {
         add { }
         remove { }
@@ -289,11 +378,19 @@ public class TextureRectProxy : ITargetProxy
 
     public TextureRectProxy(TextureRect textureRect) => _textureRect = textureRect;
 
-    public object? GetValue() => _textureRect.Texture;
-    public void SetValue(object? value)
+    public Texture2D? GetValue() => _textureRect.Texture;
+
+    public void SetValue(Texture2D? value) => _textureRect.Texture = value;
+
+    object? ITypedTargetProxy<object?>.GetValue() => GetValue();
+
+    void ITypedTargetProxy<object?>.SetValue(object? value)
     {
         if (value is Texture2D texture)
-            _textureRect.Texture = texture;
+            SetValue(texture);
+        else if (value is null)
+            SetValue(null);
     }
+
     public void Dispose() { }
 }
