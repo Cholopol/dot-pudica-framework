@@ -70,13 +70,16 @@ img{display:block;width:${Width}px;height:${Height}px;}
 </style></head><body><img src="$svgName" width="$Width" height="$Height"/></body></html>
 "@
     [System.IO.File]::WriteAllText($htmlPath, $html, $utf8)
+    $prevEap = $ErrorActionPreference
     try {
+        $ErrorActionPreference = "Continue"
         $fileUrl = "file:///" + ($htmlPath -replace '\\', '/')
         & $edge --headless=new --disable-gpu --allow-file-access-from-files --hide-scrollbars `
             --window-size="$($Width + 20),$($Height + 30)" --screenshot="$PngPath" $fileUrl 2>$null | Out-Null
         Start-Sleep -Milliseconds 500
     }
     finally {
+        $ErrorActionPreference = $prevEap
         Remove-Item $htmlPath -Force -ErrorAction SilentlyContinue
     }
     return (Test-Path $PngPath)
@@ -243,20 +246,43 @@ foreach ($file in (Find-BdnReports $ArtifactsCore)) {
     }
 }
 
+function Get-BenchParamValue {
+    param($Benchmark, [string]$Name)
+    if ($null -eq $Benchmark) { return $null }
+    $raw = $Benchmark.Parameters
+    if ($null -eq $raw) { return $null }
+    if ($raw -is [string]) {
+        if ($raw -match "(?:^|[,\s])$Name[=:]\s*([^\s,]+)") { return $Matches[1] }
+        return $null
+    }
+    $prop = $raw.PSObject.Properties[$Name]
+    if ($prop) { return [string]$prop.Value }
+    return $null
+}
+
 function Find-Bench {
-    param([string]$TypeContains, [string]$Method, [string]$N = $null)
+    param(
+        [string]$TypeContains,
+        [string]$Method,
+        [string]$N = $null,
+        [string]$BindCount = $null
+    )
     foreach ($b in $bdnBenchmarks) {
         $typeOk = $b.Type -like "*$TypeContains*"
         $methodOk = $b.Method -eq $Method
         $nOk = $true
         if ($N) {
-            $paramN = $null
-            $params = [string]$b.Parameters
-            if ($params -match "N[=:]?\s*(\d+)") { $paramN = $Matches[1] }
-            elseif ($b.FullName -match "N[=: ]+(\d+)") { $paramN = $Matches[1] }
+            $paramN = Get-BenchParamValue $b "N"
+            if (-not $paramN -and $b.FullName -match "N[=: ]+(\d+)") { $paramN = $Matches[1] }
             $nOk = $paramN -eq $N
         }
-        if ($typeOk -and $methodOk -and $nOk) { return $b }
+        $bindOk = $true
+        if ($BindCount) {
+            $paramBind = Get-BenchParamValue $b "BindCount"
+            if (-not $paramBind -and $b.FullName -match "BindCount[=: ]+(\d+)") { $paramBind = $Matches[1] }
+            $bindOk = $paramBind -eq $BindCount
+        }
+        if ($typeOk -and $methodOk -and $nOk -and $bindOk) { return $b }
     }
     return $null
 }
@@ -346,22 +372,19 @@ New-GroupedBarChartSvg -Title "Active nodes vs item count" -Categories $vlCatego
     "non-virtual" = $vlNonVirtual
 } -YLabel "active nodes" -OutPath (Join-Path $ReportDir "chart-virtual-list-nodes.png")
 
-# Chart 6: binding setup from evidence
+# Chart 6: binding setup from BDN BindingSetupBenchmarks (warmuped mean)
+$setupBindCounts = @("10", "50", "100")
 $setupLabels = @()
-$setupValues = @()
-if ($evidence -and $evidence.setup) {
-    foreach ($row in $evidence.setup) {
-        if ($row.mode -eq "typed-setup") {
-            $setupLabels += ("typed-{0}" -f $row.bindCount)
-            $setupValues += [double]$row.bindMs
-        }
-    }
+$setupValuesUs = @()
+foreach ($bc in $setupBindCounts) {
+    $setupLabels += ("typed-{0}" -f $bc)
+    $meanNs = Get-BdnMeanNs (Find-Bench "BindingSetup" "TypedBindAndDispose" -BindCount $bc)
+    $setupValuesUs += $(if ($null -eq $meanNs) { 0 } else { $meanNs / 1000.0 })
 }
-if ($setupLabels.Count -eq 0) {
-    $setupLabels = @("typed-10", "typed-50", "typed-100")
-    $setupValues = @(0, 0, 0)
+if (($setupValuesUs | Measure-Object -Sum).Sum -eq 0) {
+    Write-Warning "BindingSetup BDN results missing; chart-binding-setup may show zeros."
 }
-New-BarChartSvg -Title "Typed binding Setup bindMs by BindCount" -Labels $setupLabels -Values $setupValues -YLabel "ms" -OutPath (Join-Path $ReportDir "chart-binding-setup.png")
+New-BarChartSvg -Title "Typed binding Setup mean us/op by BindCount (BDN)" -Labels $setupLabels -Values $setupValuesUs -YLabel "us/op" -OutPath (Join-Path $ReportDir "chart-binding-setup.png")
 
 # Chart 7: native compare targetWrites at N=10000
 $nativeLabels = @()
@@ -553,13 +576,17 @@ Add-Line "**Conclusion:** Non-virtual node count grows roughly linearly with ite
 Add-Line ""
 Add-Line "### 7. Setup and View lifecycle"
 Add-Line ""
-Add-Line "Core Setup evidence:"
+Add-Line "Core Setup (BenchmarkDotNet BindingSetupBenchmarks.TypedBindAndDispose, includes warmup):"
 Add-Line ""
-Add-Line "| mode | bindCount | bindMs | disposeMs |"
+Add-Line "| method | bindCount | mean us/op | mean ms/op |"
 Add-Line "|---|---|---|---|"
-if ($evidence -and $evidence.setup) {
-    foreach ($row in $evidence.setup) {
-        Add-Line ("| {0} | {1} | {2} | {3} |" -f $row.mode, $row.bindCount, [Math]::Round($row.bindMs, 2), [Math]::Round($row.disposeMs, 2))
+foreach ($bc in $setupBindCounts) {
+    $meanNs = Get-BdnMeanNs (Find-Bench "BindingSetup" "TypedBindAndDispose" -BindCount $bc)
+    if ($null -eq $meanNs) {
+        Add-Line ("| TypedBindAndDispose | {0} | n/a | n/a |" -f $bc)
+    }
+    else {
+        Add-Line ("| TypedBindAndDispose | {0} | {1} | {2} |" -f $bc, [Math]::Round($meanNs / 1000.0, 2), [Math]::Round($meanNs / 1e6, 4))
     }
 }
 Add-Line ""
@@ -573,7 +600,7 @@ if ($godot -and $godot.viewLifecycle) {
     }
 }
 Add-Line ""
-Add-Line "**Conclusion:** Setup/Dispose cost rises with bind count; frequent enter/exit should use pooling instead of rebuilding the binding graph each time."
+Add-Line "**Conclusion:** BDN setup (post-warmup) tracks bind count without first-hit JIT skew; absolute cost stays small. Godot ViewLifecycle initMs is dominated by fixed host overhead. Frequent enter/exit should use pooling instead of rebuilding the binding graph each time."
 Add-Line ""
 Add-Line "### 8. View / Window pools"
 Add-Line ""

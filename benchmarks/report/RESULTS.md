@@ -14,7 +14,7 @@
 | Test version | v1.1.0 | v1.1.0 |
 | Pipeline | `run-all.ps1` (Core BDN 21 + Godot 6 scenarios PASS) | `run-all.ps1` (Core BDN 21 + Godot 6 scenarios PASS) |
 
-Note: Desktop runs are JIT, not export AOT. Charts were generated on **Windows**; numbers in the dual-column tables in this document are authoritative.
+Note: Desktop runs are JIT, not export AOT. Charts were generated on **Windows**; numbers in the dual-column tables in this document are authoritative. The binding-setup chart uses BenchmarkDotNet `BindingSetupBenchmarks` (not single-shot EvidenceCollector).
 
 ## Charts (Windows)
 
@@ -144,13 +144,13 @@ Godot PropertyBurst:
 
 ## 7. Setup and View lifecycle
 
-Core Setup (excerpt):
+Core Setup — BenchmarkDotNet `BindingSetupBenchmarks.TypedBindAndDispose` (with warmup; chart source):
 
-| mode | bindCount | bindMs (Mac / Win) | disposeMs (Mac / Win) |
-| ----------- | --------: | ----------------- | -------------------- |
-| typed-setup | 10 | 0.70 / 1.37 | 0.12 / 0.25 |
-| typed-setup | 50 | 0.02 / 0.02 | 0.01 / 0.02 |
-| typed-setup | 100 | 0.03 / 0.04 | 0.03 / 0.06 |
+| method | bindCount | mean µs/op | mean ms/op |
+| ----------- | --------: | ---------: | ---------: |
+| TypedBindAndDispose | 10 | 3.09 | 0.0031 |
+| TypedBindAndDispose | 50 | 22.67 | 0.0227 |
+| TypedBindAndDispose | 100 | 63.56 | 0.0636 |
 
 Godot ViewLifecycle:
 
@@ -160,7 +160,7 @@ Godot ViewLifecycle:
 | 50 | 11.20 / 10.11 | 0.04 / 0.05 |
 | 100 | 9.03 / 8.62 | 0.12 / 0.11 |
 
-**Comparison conclusion:** Both sides show **warmup noise at small bindCount**; Godot initMs is dominated by fixed overhead. Frequent enter/exit should use pooling, not absolute-ms interpretation.
+**Comparison conclusion:** Post-warmup BDN setup scales with bind count (10→100 ≈ 3→64 µs) without first-hit JIT skew; absolute cost stays small. Godot initMs remains dominated by fixed host overhead on both machines. Frequent enter/exit should use pooling, not absolute-ms interpretation.
 
 ## 8. View / Window pools
 
