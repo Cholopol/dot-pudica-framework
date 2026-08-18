@@ -455,6 +455,109 @@ public class BindingGeneratorTests
     }
 
     [Fact]
+    public void TextureRect_BindToWithNullableConverter_EmitsNullableTextureTarget()
+    {
+        var source = NullableProxyHarness("""
+                public sealed class IconKeyToTextureConverter : IValueConverter<string, Texture2D?>
+                {
+                    public Texture2D? Convert(string value) => null;
+                    public string ConvertBack(Texture2D? value) => "";
+                }
+
+                public sealed class SampleViewModel
+                {
+                    public string IconKey { get; set; } = "";
+                }
+
+                [DotPudicaView(typeof(SampleViewModel))]
+                public partial class SampleView : Node
+                {
+                    public override void _Ready() => InitializeView();
+
+                    public override void _ExitTree() => DisposeView();
+
+                    [BindTo("IconKey", Converter = typeof(IconKeyToTextureConverter))]
+                    private TextureRect _icon = null!;
+                }
+            """);
+
+        var (result, generated, compilationDiagnostics) = RunGeneratorWithCompilationDiagnostics(
+            source, nullableContext: NullableContextOptions.Enable);
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(compilationDiagnostics, d => d.Id == "CS8620");
+        Assert.Contains(
+            "__dotPudicaView.BindProperty<string, Godot.Texture2D?>(__proxy, __path, DotPudica.Core.Binding.BindingMode.OneWay, converter: new Sample.IconKeyToTextureConverter());",
+            generated);
+        Assert.Contains("new TextureRectProxy(_icon)", generated);
+    }
+
+    [Fact]
+    public void Label_BindToText_EmitsNonNullableStringTarget()
+    {
+        var source = NullableProxyHarness("""
+                public sealed class SampleViewModel
+                {
+                    public string Title { get; set; } = "";
+                }
+
+                [DotPudicaView(typeof(SampleViewModel))]
+                public partial class SampleView : Node
+                {
+                    public override void _Ready() => InitializeView();
+
+                    public override void _ExitTree() => DisposeView();
+
+                    [BindTo("Title")]
+                    private Label title = null!;
+                }
+            """);
+
+        var generated = RunGenerator(source);
+
+        Assert.Contains(
+            "__dotPudicaView.BindProperty<string, string>(__proxy, __path, DotPudica.Core.Binding.BindingMode.OneWay);",
+            generated);
+        Assert.Contains("new LabelProxy(title)", generated);
+        Assert.DoesNotContain("BindProperty<string, string?>", generated);
+    }
+
+    [Fact]
+    public void TextureRect_BindToModulate_UsesDelegateProxyWithoutNullableWarning()
+    {
+        var source = NullableProxyHarness("""
+                public sealed class SampleViewModel
+                {
+                    public Color Tint { get; set; }
+                }
+
+                [DotPudicaView(typeof(SampleViewModel))]
+                public partial class SampleView : Node
+                {
+                    public override void _Ready() => InitializeView();
+
+                    public override void _ExitTree() => DisposeView();
+
+                    [BindTo("Tint", Target = "Modulate")]
+                    private TextureRect icon = null!;
+                }
+            """);
+
+        var (result, generated, compilationDiagnostics) = RunGeneratorWithCompilationDiagnostics(
+            source, nullableContext: NullableContextOptions.Enable);
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(compilationDiagnostics, d => d.Id is "CS8620" or "CS8600" or "CS8601" or "CS8625");
+        Assert.Contains(
+            "__dotPudicaView.BindProperty<Godot.Color, Godot.Color>(__proxy, __path, DotPudica.Core.Binding.BindingMode.OneWay);",
+            generated);
+        Assert.Contains(
+            "new DelegateTargetProxy<Godot.TextureRect, Godot.Color>(icon, static c => c.Modulate, static (c, v) => c.Modulate = v, null)",
+            generated);
+        Assert.DoesNotContain("new TextureRectProxy(icon)", generated);
+    }
+
+    [Fact]
     public void ReferenceUpcast_OneWay_EmitsMapForward()
     {
         var source = TypeCheckHarness("""
@@ -1230,6 +1333,151 @@ public class BindingGeneratorTests
             """;
     }
 
+    private static string NullableProxyHarness(string sampleTypes) => $$"""
+        #nullable enable
+        global using System;
+        using Godot;
+        using DotPudica.Core.Binding;
+        using DotPudica.Core.Binding.Attributes;
+        using DotPudica.Godot.Views;
+
+        namespace Godot
+        {
+            public struct Color { }
+
+            public class Node
+            {
+                public virtual void _Ready() { }
+                public virtual void _ExitTree() { }
+            }
+
+            public class Label : Node
+            {
+                public string Text { get; set; } = "";
+            }
+
+            public class Texture2D { }
+
+            public class TextureRect : Node
+            {
+                public Texture2D Texture { get; set; } = null!;
+                public Color Modulate { get; set; }
+            }
+        }
+
+        namespace DotPudica.Core.ViewModels
+        {
+            public enum ViewModelOwnership { External, Owned }
+        }
+
+        namespace DotPudica.Core.Binding
+        {
+            public enum BindingMode { Default, OneWay, TwoWay, OneWayToSource, OneTime }
+            public class BindingContext { }
+
+            public interface ITypedTargetProxy<TValue> : IDisposable
+            {
+                TValue GetValue();
+                void SetValue(TValue value);
+                event EventHandler? ValueChanged;
+            }
+
+            public interface IValueConverter<TIn, TOut>
+            {
+                TOut Convert(TIn value);
+                TIn ConvertBack(TOut value);
+            }
+
+            public sealed class TypedBindingPath<TSource, TValue>
+            {
+                public TypedBindingPath(
+                    Func<TSource, TValue> getter,
+                    Action<TSource, TValue>? setter,
+                    string[] segments,
+                    Func<TSource, object?>[]? prefixGetters = null) { }
+            }
+        }
+
+        namespace DotPudica.Core.Binding.Attributes
+        {
+            public sealed class BindToAttribute(string path) : Attribute
+            {
+                public BindingMode Mode { get; set; }
+                public string? Target { get; set; }
+                public string? Signal { get; set; }
+                public Type? Converter { get; set; }
+            }
+        }
+
+        namespace DotPudica.Godot.Binding.ControlProxies
+        {
+            public class LabelProxy : ITypedTargetProxy<string>
+            {
+                public LabelProxy(Label label) { }
+                public string GetValue() => "";
+                public void SetValue(string value) { }
+                public event EventHandler? ValueChanged { add { } remove { } }
+                public void Dispose() { }
+            }
+
+            public class TextureRectProxy : ITypedTargetProxy<Texture2D?>
+            {
+                public TextureRectProxy(TextureRect textureRect) { }
+                public Texture2D? GetValue() => null;
+                public void SetValue(Texture2D? value) { }
+                public event EventHandler? ValueChanged { add { } remove { } }
+                public void Dispose() { }
+            }
+
+            public sealed class DelegateTargetProxy<TControl, TValue> : ITypedTargetProxy<TValue>
+            {
+                public DelegateTargetProxy(
+                    TControl control,
+                    Func<TControl, TValue> getter,
+                    Action<TControl, TValue>? setter,
+                    string? changeSignal) { }
+                public TValue GetValue() => default!;
+                public void SetValue(TValue value) { }
+                public event EventHandler? ValueChanged { add { } remove { } }
+                public void Dispose() { }
+            }
+
+            public class VirtualizedItemsControl : global::Godot.Node { }
+        }
+
+        namespace DotPudica.Godot.Views
+        {
+            public sealed class DotPudicaViewAttribute(Type viewModelType) : Attribute { }
+
+            public sealed class DotPudicaViewRuntime<TViewModel> where TViewModel : class
+            {
+                public BindingContext BindingContext { get; } = new();
+                public TViewModel? ViewModel { get; set; }
+                public void SetViewModel(TViewModel viewModel, DotPudica.Core.ViewModels.ViewModelOwnership ownership) { }
+                public void CaptureUiContext() { }
+                public void Dispose() { }
+                public void BindProperty<TSource, TTarget>(
+                    ITypedTargetProxy<TTarget> targetProxy,
+                    TypedBindingPath<TViewModel, TSource> sourcePath,
+                    BindingMode mode,
+                    IValueConverter<TSource, TTarget>? converter = null,
+                    Func<TSource, TTarget>? mapForward = null,
+                    Func<TTarget, TSource>? mapBack = null) { }
+                public void BindVirtualizedItems<TCollection>(
+                    DotPudica.Godot.Binding.ControlProxies.VirtualizedItemsControl target,
+                    string scene,
+                    TypedBindingPath<TViewModel, TCollection> sourcePath,
+                    Func<TViewModel, System.Windows.Input.ICommand>? itemCommandGetter = null)
+                    where TCollection : class { }
+            }
+        }
+
+        namespace Sample
+        {
+        {{sampleTypes}}
+        }
+        """;
+
     private static string RunGenerator(string source)
     {
         var (result, generated) = RunGeneratorWithDiagnostics(source);
@@ -1241,20 +1489,33 @@ public class BindingGeneratorTests
     private static (GeneratorRunResult Result, string Generated) RunGeneratorWithDiagnostics(
         string source, bool requireCleanCompilation = true)
     {
+        var (result, generated, _) = RunGeneratorWithCompilationDiagnostics(source, requireCleanCompilation);
+        return (result, generated);
+    }
+
+    private static (GeneratorRunResult Result, string Generated, IReadOnlyList<Diagnostic> CompilationDiagnostics)
+        RunGeneratorWithCompilationDiagnostics(
+            string source,
+            bool requireCleanCompilation = true,
+            NullableContextOptions nullableContext = NullableContextOptions.Disable)
+    {
         var compilation = CSharpCompilation.Create(
             assemblyName: "BindingGeneratorRegression",
             syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
             references: GetPlatformReferences(),
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            options: new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: nullableContext));
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new BindingGenerator().AsSourceGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
 
         var result = Assert.Single(driver.GetRunResult().Results);
+        var compilationDiagnostics = outputCompilation.GetDiagnostics();
         if (requireCleanCompilation && !result.Diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
-            Assert.Empty(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+            Assert.Empty(compilationDiagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
-        return (result, Assert.Single(result.GeneratedSources).SourceText.ToString());
+        return (result, Assert.Single(result.GeneratedSources).SourceText.ToString(), compilationDiagnostics);
     }
 
     private static IEnumerable<MetadataReference> GetPlatformReferences()

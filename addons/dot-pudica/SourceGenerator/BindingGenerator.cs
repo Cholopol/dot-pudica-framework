@@ -141,7 +141,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
                 foreach (var variable in fieldSyntax.Declaration.Variables)
                 {
                     if (model.GetDeclaredSymbol(variable, ct) is IFieldSymbol fieldSymbol)
-                        CollectBindings(info, fieldSymbol, variable.Identifier.Text, controlTypeSymbol, viewModelSymbol);
+                        CollectBindings(info, fieldSymbol, variable.Identifier.Text, controlTypeSymbol, viewModelSymbol, model.Compilation);
                 }
                 continue;
             }
@@ -150,7 +150,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
                 && model.GetDeclaredSymbol(propertySyntax, ct) is IPropertySymbol propertySymbol)
             {
                 var controlTypeSymbol = model.GetTypeInfo(propertySyntax.Type, ct).Type;
-                CollectBindings(info, propertySymbol, propertySyntax.Identifier.Text, controlTypeSymbol, viewModelSymbol);
+                CollectBindings(info, propertySymbol, propertySyntax.Identifier.Text, controlTypeSymbol, viewModelSymbol, model.Compilation);
             }
         }
 
@@ -406,7 +406,8 @@ public sealed class BindingGenerator : IIncrementalGenerator
         ISymbol targetMember,
         string targetMemberName,
         ITypeSymbol? controlTypeSymbol,
-        INamedTypeSymbol? viewModelSymbol)
+        INamedTypeSymbol? viewModelSymbol,
+        Compilation compilation)
     {
         var controlTypeName = controlTypeSymbol?.Name ?? "";
         var controlTypeFullName = controlTypeSymbol?.ToDisplayString() ?? "";
@@ -419,7 +420,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
             if (binding is not null)
             {
                 binding.Location = location;
-                ResolvePropertyPath(binding, viewModelSymbol, controlTypeSymbol);
+                ResolvePropertyPath(binding, viewModelSymbol, controlTypeSymbol, compilation);
                 info.PropertyBindings.Add(binding);
             }
         }
@@ -648,7 +649,8 @@ public sealed class BindingGenerator : IIncrementalGenerator
     private static void ResolvePropertyPath(
         PropertyBindingInfo binding,
         INamedTypeSymbol? viewModelSymbol,
-        ITypeSymbol? controlTypeSymbol)
+        ITypeSymbol? controlTypeSymbol,
+        Compilation compilation)
     {
         if (viewModelSymbol is null)
             return;
@@ -662,13 +664,14 @@ public sealed class BindingGenerator : IIncrementalGenerator
         var finalType = GetMemberType(finalMember);
         if (finalType is not null)
         {
-            binding.FinalTypeDisplay = finalType.ToDisplayString();
+            binding.FinalTypeDisplay = finalType.ForCode();
             binding.SourceValueType = finalType;
         }
 
         InferTargetAndSignal(binding, controlTypeSymbol);
         ResolveTargetPropertyType(binding, controlTypeSymbol);
         ResolveBuiltInProxy(binding, controlTypeSymbol);
+        AlignTargetTypeWithBuiltInProxy(binding, compilation);
 
         if (binding.BindingMode == "DotPudica.Core.Binding.BindingMode.Default")
         {
@@ -728,6 +731,39 @@ public sealed class BindingGenerator : IIncrementalGenerator
             }
             current = current.BaseType;
         }
+    }
+
+    private static void AlignTargetTypeWithBuiltInProxy(PropertyBindingInfo binding, Compilation compilation)
+    {
+        if (binding.BuiltInProxyTypeName is null)
+            return;
+
+        var proxyType = compilation.GetTypeByMetadataName(
+            "DotPudica.Godot.Binding.ControlProxies." + binding.BuiltInProxyTypeName);
+        var proxyValueType = GetTypedTargetProxyValueType(proxyType);
+        if (proxyValueType is null)
+            return;
+
+        binding.TargetValueType = proxyValueType;
+    }
+
+    private static ITypeSymbol? GetTypedTargetProxyValueType(INamedTypeSymbol? proxyType)
+    {
+        if (proxyType is null)
+            return null;
+
+        foreach (var iface in proxyType.AllInterfaces)
+        {
+            if (iface is not { Name: "ITypedTargetProxy", TypeArguments.Length: 1 })
+                continue;
+            if (iface.ContainingNamespace?.ToDisplayString() != "DotPudica.Core.Binding")
+                continue;
+            if (iface.TypeArguments[0].SpecialType == SpecialType.System_Object)
+                continue;
+            return iface.TypeArguments[0];
+        }
+
+        return null;
     }
 
     private static void ResolveCommandPath(
@@ -797,7 +833,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
         var finalType = GetMemberType(finalMember);
         if (finalType is not null)
         {
-            binding.CollectionTypeDisplay = finalType.ToDisplayString();
+            binding.CollectionTypeDisplay = finalType.ForCode();
             binding.ElementTypeSymbol = GetEnumerableElementType(finalType);
         }
     }
@@ -1825,7 +1861,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
             {
                 var pkey = SanitizeKey("param_" + c.ParameterPath);
                 var pType = GetMemberType(c.ParameterPathMembers[c.ParameterPathMembers.Count - 1])
-                    ?.ToDisplayString() ?? "object?";
+                    ?.ForCode() ?? "object?";
                 EmitPathFields(pkey, c.ParameterPathMembers, pType, canWrite: false);
             }
         }
@@ -1902,7 +1938,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
 
             var key = SanitizeKey("prop_" + b.SourcePath);
             var sourceType = b.FinalTypeDisplay;
-            var targetType = b.TargetValueType.ToDisplayString();
+            var targetType = b.TargetValueType.ForCode();
             var canWrite = IsWritableMember(b.PathMembers[b.PathMembers.Count - 1]);
             var setterArg = canWrite ? $"{key}_set" : "null";
 
@@ -2045,7 +2081,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
 
         // DelegateTargetProxy for custom controls; Range subclass Min/Max/Value uses coordinated write.
         var controlType = binding.ControlTypeFullName;
-        var targetType = binding.TargetValueType!.ToDisplayString();
+        var targetType = binding.TargetValueType!.ForCode();
         var signalArg = binding.SourceEvent is null ? "null" : $"\"{binding.SourceEvent}\"";
         sb.Append("new DelegateTargetProxy<").Append(controlType).Append(", ")
             .Append(targetType).Append(">(").Append(binding.FieldName);
