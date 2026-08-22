@@ -1,3 +1,5 @@
+using Godot;
+
 namespace DotPudica.Godot.Views;
 
 /// <summary>
@@ -166,7 +168,13 @@ public interface IWindowManager
     /// </summary>
     void ConfigurePool<TWindow>(int maxSize) where TWindow : GodotWindow, new();
 
+    /// <summary>Registers a per-type window pool using a PackedScene path.</summary>
+    void ConfigurePool<TWindow>(string scenePath, int maxSize) where TWindow : GodotWindow;
+
+    /// <summary>Registers a per-type window pool using a PackedScene.</summary>
+    void ConfigurePool<TWindow>(PackedScene scene, int maxSize) where TWindow : GodotWindow;
+
     /// <summary>Shows a pooled window, reusing the cached node when available. Requires <see cref="ConfigurePool{TWindow}"/> first.</summary>
     TWindow ShowPooled<TWindow>(IBundle? bundle = null, bool ignoreAnimation = false)
-        where TWindow : GodotWindow, new();
+        where TWindow : GodotWindow;
 }

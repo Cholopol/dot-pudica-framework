@@ -1,17 +1,14 @@
 ## Highlights
 
-- Source generator type display rework: nullable-consistent `ForCode()` formatting plus built-in proxy target type alignment
-- Strengthened generator regression suite (nullable / converter / delegate-proxy scenarios)
-- Fixed benchmark setup chart generation (BDN `BindingSetup`)
+- Window pooling from scenes: `IWindowManager` / `GodotWindowManager` now support configuring window pools using a scene path or a preloaded `PackedScene`
+- Generic constraint relaxed on `ShowPooled<TWindow>` from `where TWindow : GodotWindow, new()` to `where TWindow : GodotWindow`, allowing scene-instantiated complex windows to be pooled and reused seamlessly
 
 ## Changes
 
-- Source generator: type display now emits nullable reference type modifiers (`ForCode()` in `TypeDisplay.cs`), so generated `BindProperty<TFrom, TTo>` signatures match runtime proxy semantics exactly
-- Source generator: added `AlignTargetTypeWithBuiltInProxy` — built-in proxy target value types are resolved from the proxy interface, eliminating `string?` vs `string` mismatches for `LabelProxy` / `TextureRectProxy` / range controls
-- Tests: added nullable proxy harness and regression tests (nullable converter target, non-nullable `string` target, delegate proxy without nullable warnings)
-- Benchmarks: regenerated setup chart with BDN `BindingSetup` (`chart-binding-setup.png`, report script refactor)
+- **Window Management**: Added `ConfigurePool<TWindow>(string scenePath, int maxSize)` and `ConfigurePool<TWindow>(PackedScene scene, int maxSize)` overloads to `IWindowManager` and `GodotWindowManager`.
+- **API Relaxation**: Removed `new()` constraint on `ShowPooled<TWindow>`, aligning window pooling capabilities with `NodePool`.
+- **Lifecycle Consistency**: Scene-instantiated pooled windows strictly adhere to `_Ready` -> `InitializeView()` and `_ExitTree` -> `RecycleView()` lifecycle contracts.
 
 ## Breaking / migration
 
-- None. Behavior-compatible refactor of generated binding type display.
-
+- None. 100% backward compatible.

@@ -128,9 +128,37 @@ public partial class GodotWindowManager : Node, IWindowManager
         _pools.Add(typeof(TWindow), new WindowPoolEntry((IObjectPool)NodePool.Create<TWindow>(maxSize), maxSize));
     }
 
+    /// <summary>Configures a window pool using a PackedScene path.</summary>
+    public void ConfigurePool<TWindow>(string scenePath, int maxSize) where TWindow : GodotWindow
+    {
+        if (_pools.TryGetValue(typeof(TWindow), out var existing))
+        {
+            if (existing.MaxSize != maxSize)
+                throw new InvalidOperationException(
+                    $"Window pool for {typeof(TWindow).Name} is already configured with maxSize={existing.MaxSize}.");
+            return;
+        }
+
+        _pools.Add(typeof(TWindow), new WindowPoolEntry((IObjectPool)NodePool.Create<TWindow>(scenePath, maxSize), maxSize));
+    }
+
+    /// <summary>Configures a window pool using a preloaded PackedScene.</summary>
+    public void ConfigurePool<TWindow>(PackedScene scene, int maxSize) where TWindow : GodotWindow
+    {
+        if (_pools.TryGetValue(typeof(TWindow), out var existing))
+        {
+            if (existing.MaxSize != maxSize)
+                throw new InvalidOperationException(
+                    $"Window pool for {typeof(TWindow).Name} is already configured with maxSize={existing.MaxSize}.");
+            return;
+        }
+
+        _pools.Add(typeof(TWindow), new WindowPoolEntry((IObjectPool)NodePool.Create<TWindow>(scene, maxSize), maxSize));
+    }
+
     /// <inheritdoc />
     public TWindow ShowPooled<TWindow>(IBundle? bundle = null, bool ignoreAnimation = false)
-        where TWindow : GodotWindow, new()
+        where TWindow : GodotWindow
     {
         if (!_pools.TryGetValue(typeof(TWindow), out var entry))
             throw new InvalidOperationException(
@@ -246,11 +274,11 @@ public partial class GodotWindowManager : Node, IWindowManager
 
         if (gw.GetParent() is { } parent)
         {
-            parent.RemoveChild(gw);   // _ExitTree → RecycleView（解绑 + 断 VM + RequestReady）
+            parent.RemoveChild(gw);   // _ExitTree triggers RecycleView (unbinds, disconnects VM, and requests ready).
         }
         else
         {
-            gw.RequestReady();        // 无父节点：_ExitTree 未触发，兜底重武装
+            gw.RequestReady();        // Fallback re-arming when _ExitTree is not triggered without a parent.
         }
         gw.ResetForReuse();
         entry.Pool.Free(gw);
