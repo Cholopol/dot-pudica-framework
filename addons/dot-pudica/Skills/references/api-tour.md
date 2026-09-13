@@ -113,20 +113,22 @@ public abstract partial class GodotWindow : Control, IWindow
     public bool IsWindowActivated { get; }
     public WindowState State { get; }           // Begin/End markers fire synchronously inside one transition callback
 
-    public void Create(IBundle? bundle = null); // no-op when already Created; calls OnCreate(bundle)
+    public void Create(IBundle? bundle = null); // no-op when already Created; OnCreate then Visible = false (Hidden)
     public ITransition Show(bool ignoreAnimation = false);
     public ITransition Hide(bool ignoreAnimation = false);
     public ITransition Dismiss(bool ignoreAnimation = false);
 
     protected virtual void OnCreate(IBundle? bundle) { }
-    protected virtual void OnShow() { }
-    protected virtual void OnHide() { }
+    protected virtual void OnShow() { }   // enter OnStart, before Visible = true
+    protected virtual void OnHide() { }   // exit OnEnd, after Visible = false
     protected virtual void OnDismiss() { }
 }
 ```
 
 Constraints:
 
+- `Create` sets `Visible = false` so `AddChild` of a Hidden window does not paint at the scene default origin. `ResetForReuse` does the same for pooled recycle.
+- `OnShow` runs on enter-animation **OnStart**, still hidden — put Popup layout / centering here. Fade then runs; OnEnd only **Activate**. Work that must wait until the fade finishes should subscribe to `StateChanged` (`EnterAnimationEnd` / `Activated`), not `OnShow`.
 - `Show`/`Hide`/`Dismiss` throw `InvalidOperationException` ("Cannot dismiss a dismissed window.") once `Dismissed` is true — a dismissed window is terminal.
 - `Dismiss` repeated while already dismissing reuses the in-flight transition instead of canceling it (so `WindowDismissed` still fires).
 - Non-pooled `Dismiss` ends with `QueueFree()`; pooled windows (`IsPooled` set by `ShowPooled`) are recycled by the manager instead.

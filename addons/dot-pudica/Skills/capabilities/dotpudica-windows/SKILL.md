@@ -25,7 +25,7 @@ Valid input states:
 ## Procedure
 
 1. Confirm the manager node exists and was passed to `Initialize`. Checkpoint: `Initialize` must have completed before any `Show`/`ShowPooled` call.
-2. Write the window class (two lifecycle lines + optional `OnCreate(IBundle? bundle)` hook):
+2. Write the window class (two lifecycle lines + optional `OnCreate` / `OnShow` hooks):
 
 ```csharp
 [DotPudicaView(typeof(ConfirmViewModel))]
@@ -35,6 +35,9 @@ public partial class ConfirmDialog : GodotWindow
     public override void _ExitTree() => DisposeView();
 
     protected override void OnCreate(IBundle? bundle) { }
+
+    // Popup position/centering: OnShow runs before Visible = true (before the enter fade).
+    protected override void OnShow() { }
 }
 ```
 
@@ -56,6 +59,7 @@ wm.Dismiss(dialog);
 - `Dismiss` on an already-dismissed window throws `InvalidOperationException`.
 - A non-pooled window ends its `Dismiss` with automatic `QueueFree()`; pooled windows (via `ShowPooled<T>`) are recycled by the manager instead.
 - A window node without a parent is `AddChild`-ed as a fallback — host window nodes via `Prepare*` before `Show` when parenting matters.
+- Popup / Dialog layout (centering, z-order) belongs in `OnShow`, which runs on enter-animation start while the node is still hidden. Do not wait for the fade to finish; `Create` already sets `Visible = false` so `AddChild` does not flash at `(0,0)`. Full windows that fill the viewport (`anchors_preset` FullRect) do not need extra centering.
 
 ## Output Contract
 
@@ -71,6 +75,7 @@ Deliverable = the window class + call-site code (create-with-bundle, show, dismi
 | `Dismiss` on an already-dismissed window throws `InvalidOperationException` ("Cannot dismiss a dismissed window.") | Check `Dismissed` or subscribe to `WindowDismissed` before dismissing; a dismissed window is terminal and must not be reused. |
 | `AppContext.WindowManager` access throws ("WindowManager is not configured...") | `Initialize` was called without the manager node — pass the `GodotWindowManager` node into `Initialize`. |
 | A window does not show | Wrong `WindowType` for the intent (e.g. a Full page hidden by another Full, or a QueuedPopup stuck behind a visible one) — verify stack mutual-exclusion semantics and `IsWindowVisible`. |
+| Popup fades in at the top-left then jumps to center | Layout ran too late. Center in `OnShow` (before `Visible = true`), not after the enter animation. |
 | `Show` before `Initialize` completed (AppContext exceptions) | Sequencing discipline: bootstrap `Initialize` before any window operation. |
 
 ## References

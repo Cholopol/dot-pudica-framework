@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System;
 using System.Linq;
 using System.Text;
@@ -23,70 +24,90 @@ public sealed class BindingGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        var viewClasses = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: IsRelevantClass,
-                transform: TransformClassDeclaration)
+        var owningViews = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                Constants.DotPudicaViewAttributeFull,
+                predicate: IsPartialClass,
+                transform: TransformOwningView)
             .Where(static info => info is not null)
             .Select(static (info, _) => info!);
 
-        var collected = viewClasses.Collect();
-        context.RegisterSourceOutput(collected, GenerateBindingCode);
+        context.RegisterSourceOutput(owningViews, GenerateBindingCode);
+
+        var derivedViews = MemberBindingViews(context, Constants.BindToAttributeFull).Collect()
+            .Combine(MemberBindingViews(context, Constants.BindCommandAttributeFull).Collect())
+            .Combine(MemberBindingViews(context, Constants.ItemsSourceAttributeFull).Collect())
+            .Select(static (tuple, _) =>
+            {
+                var bindTo = tuple.Left.Left;
+                var bindCommand = tuple.Left.Right;
+                var itemsSource = tuple.Right;
+                var builder = ImmutableArray.CreateBuilder<ViewClassInfo>(
+                    bindTo.Length + bindCommand.Length + itemsSource.Length);
+                builder.AddRange(bindTo);
+                builder.AddRange(bindCommand);
+                builder.AddRange(itemsSource);
+                return builder.ToImmutable();
+            });
+
+        context.RegisterSourceOutput(derivedViews, GenerateDerivedBindingCode);
     }
 
-    private static bool IsRelevantClass(SyntaxNode node, CancellationToken ct)
+    private static IncrementalValuesProvider<ViewClassInfo> MemberBindingViews(
+        IncrementalGeneratorInitializationContext context,
+        string attributeMetadataName)
     {
-        if (node is not ClassDeclarationSyntax classSyntax)
-            return false;
+        return context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                attributeMetadataName,
+                predicate: IsBindingMemberInPartialClass,
+                transform: TransformDerivedViewFromMember)
+            .Where(static info => info is not null)
+            .Select(static (info, _) => info!);
+    }
 
-        if (!classSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
-            return false;
+    private static bool IsPartialClass(SyntaxNode node, CancellationToken _)
+        => node is ClassDeclarationSyntax classSyntax
+            && classSyntax.Modifiers.Any(static m => m.IsKind(SyntaxKind.PartialKeyword));
 
-        foreach (var attrList in classSyntax.AttributeLists)
-        {
-            foreach (var attr in attrList.Attributes)
-            {
-                var name = attr.Name.ToString();
-                if (name is Constants.DotPudicaViewAttribute or "DotPudicaViewAttribute")
-                    return true;
-            }
-        }
+    private static bool IsBindingMemberInPartialClass(SyntaxNode node, CancellationToken _)
+    {
+        var classSyntax = node.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+        return classSyntax is not null
+            && classSyntax.Modifiers.Any(static m => m.IsKind(SyntaxKind.PartialKeyword));
+    }
 
-        foreach (var member in classSyntax.Members)
-        {
-            var attributeLists = member switch
-            {
-                FieldDeclarationSyntax field => field.AttributeLists,
-                PropertyDeclarationSyntax property => property.AttributeLists,
-                _ => default,
-            };
+    private static ViewClassInfo? TransformOwningView(
+        GeneratorAttributeSyntaxContext ctx,
+        CancellationToken ct)
+    {
+        if (ctx.TargetNode is not ClassDeclarationSyntax classSyntax)
+            return null;
 
-            foreach (var attrList in attributeLists)
-            {
-                foreach (var attr in attrList.Attributes)
-                {
-                    var name = attr.Name.ToString();
-                    if (name is Constants.BindToAttribute or Constants.BindCommandAttribute
-                        or Constants.ItemsSourceAttribute
-                        or "BindTo" or "BindCommand" or "ItemsSource"
-                        or "BindToAttribute" or "BindCommandAttribute" or "ItemsSourceAttribute")
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
+        return TransformClassDeclaration(classSyntax, ctx.SemanticModel, ct);
+    }
 
-        return false;
+    private static ViewClassInfo? TransformDerivedViewFromMember(
+        GeneratorAttributeSyntaxContext ctx,
+        CancellationToken ct)
+    {
+        if (ctx.TargetSymbol.ContainingType is not INamedTypeSymbol classSymbol)
+            return null;
+        if (GetOwnAttributeViewModelType(classSymbol).Symbol is not null)
+            return null;
+
+        var classSyntax = ctx.TargetNode.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+        if (classSyntax is null)
+            return null;
+
+        return TransformClassDeclaration(classSyntax, ctx.SemanticModel, ct);
     }
 
     private static ViewClassInfo? TransformClassDeclaration(
-        GeneratorSyntaxContext ctx,
+        ClassDeclarationSyntax classSyntax,
+        SemanticModel model,
         CancellationToken ct)
     {
-        var classSyntax = (ClassDeclarationSyntax)ctx.Node;
-        var model = ctx.SemanticModel;
-
         if (model.GetDeclaredSymbol(classSyntax, ct) is not INamedTypeSymbol classSymbol)
             return null;
 
@@ -1040,18 +1061,26 @@ public sealed class BindingGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GenerateBindingCode(
-        SourceProductionContext ctx,
-        System.Collections.Immutable.ImmutableArray<ViewClassInfo> views)
+    private static void GenerateBindingCode(SourceProductionContext ctx, ViewClassInfo view)
     {
+        ctx.CancellationToken.ThrowIfCancellationRequested();
+        ReportDiagnostics(ctx, view);
+        var source = GenerateClassSource(view);
+        ctx.AddSource($"{view.Namespace}.{view.ClassName}.Bindings.g.cs", SourceText.From(source, Encoding.UTF8));
+    }
+
+    private static void GenerateDerivedBindingCode(
+        SourceProductionContext ctx,
+        ImmutableArray<ViewClassInfo> views)
+    {
+        var emitted = new HashSet<string>(StringComparer.Ordinal);
         foreach (var view in views)
         {
-            ctx.CancellationToken.ThrowIfCancellationRequested();
+            var key = view.Namespace + "." + view.ClassName;
+            if (!emitted.Add(key))
+                continue;
 
-            ReportDiagnostics(ctx, view);
-
-            var source = GenerateClassSource(view);
-            ctx.AddSource($"{view.Namespace}.{view.ClassName}.Bindings.g.cs", SourceText.From(source, Encoding.UTF8));
+            GenerateBindingCode(ctx, view);
         }
     }
 

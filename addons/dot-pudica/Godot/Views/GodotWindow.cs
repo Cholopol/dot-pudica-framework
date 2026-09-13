@@ -38,6 +38,7 @@ public abstract partial class GodotWindow : Control, IWindow
     {
         _state = WindowState.None;
         _lifecycle = WindowLifecycle.Uncreated;
+        Visible = false;
     }
 
     /// <summary>True while a dismiss transition is in flight (OnStart done, OnEnd not yet).</summary>
@@ -64,6 +65,7 @@ public abstract partial class GodotWindow : Control, IWindow
 
         State = WindowState.CreateBegin;
         OnCreate(bundle);
+        Visible = false;
         _lifecycle = WindowLifecycle.Hidden;
         State = WindowState.CreateEnd;
     }
@@ -87,6 +89,7 @@ public abstract partial class GodotWindow : Control, IWindow
         transition.OnStart(() =>
         {
             State = WindowState.EnterAnimationBegin;
+            OnShow();
             Visible = true;
             _lifecycle = WindowLifecycle.Visible;
             WindowVisibilityChanged?.Invoke(this, EventArgs.Empty);
@@ -101,7 +104,6 @@ public abstract partial class GodotWindow : Control, IWindow
             WindowActivationChanged?.Invoke(this, EventArgs.Empty);
             State = WindowState.Activated;
             State = WindowState.ActivationAnimationEnd;
-            OnShow();
             ClearActiveTransition(transition);
         });
 

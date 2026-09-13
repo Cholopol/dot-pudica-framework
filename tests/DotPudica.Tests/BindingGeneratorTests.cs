@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using DotPudica.Core.ViewModels;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -520,6 +521,73 @@ public class BindingGeneratorTests
             generated);
         Assert.Contains("new LabelProxy(title)", generated);
         Assert.DoesNotContain("BindProperty<string, string?>", generated);
+    }
+
+    [Fact]
+    public void FullyQualifiedDotPudicaView_StillGenerates()
+    {
+        var source = NullableProxyHarness("""
+                public sealed class SampleViewModel
+                {
+                    public string Title { get; set; } = "";
+                }
+
+                [DotPudica.Godot.Views.DotPudicaView(typeof(SampleViewModel))]
+                public partial class SampleView : Node
+                {
+                    public override void _Ready() => InitializeView();
+
+                    public override void _ExitTree() => DisposeView();
+
+                    [BindTo("Title")]
+                    private Label title = null!;
+                }
+            """);
+
+        var generated = RunGenerator(source);
+
+        Assert.Contains("public partial class SampleView", generated);
+        Assert.Contains(
+            "__dotPudicaView.BindProperty<string, string>(__proxy, __path, DotPudica.Core.Binding.BindingMode.OneWay);",
+            generated);
+    }
+
+    [Fact]
+    public void DerivedView_WithInheritedAttribute_GeneratesBindingOverride()
+    {
+        var source = NullableProxyHarness("""
+                public sealed class SampleViewModel
+                {
+                    public string Title { get; set; } = "";
+                }
+
+                [DotPudicaView(typeof(SampleViewModel))]
+                public partial class BaseView : Node
+                {
+                    public override void _Ready() => InitializeView();
+
+                    public override void _ExitTree() => DisposeView();
+                }
+
+                public partial class ChildView : BaseView
+                {
+                    [BindTo("Title")]
+                    private Label title = null!;
+                }
+            """);
+
+        var (result, generated) = RunGeneratorAllSources(source);
+
+        Assert.Empty(result.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        Assert.Equal(2, generated.Count);
+        Assert.Contains(generated, text => text.Contains("public partial class BaseView"));
+        var child = Assert.Single(generated, text => text.Contains("public partial class ChildView"));
+        Assert.Contains("protected override void __DotPudicaInitializeBindingsCore()", child);
+        Assert.Contains("base.__DotPudicaInitializeBindingsCore();", child);
+        Assert.Contains(
+            "__dotPudicaView.BindProperty<string, string>(__proxy, __path, DotPudica.Core.Binding.BindingMode.OneWay);",
+            child);
+        Assert.DoesNotContain("protected readonly DotPudicaViewRuntime<", child);
     }
 
     [Fact]
@@ -1493,8 +1561,28 @@ public class BindingGeneratorTests
         return (result, generated);
     }
 
+    private static (GeneratorRunResult Result, IReadOnlyList<string> Generated) RunGeneratorAllSources(string source)
+    {
+        var (result, sources, _) = RunGeneratorCore(source);
+        Assert.Empty(result.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        var generated = new string[sources.Length];
+        for (var i = 0; i < sources.Length; i++)
+            generated[i] = sources[i].SourceText.ToString();
+        return (result, generated);
+    }
+
     private static (GeneratorRunResult Result, string Generated, IReadOnlyList<Diagnostic> CompilationDiagnostics)
         RunGeneratorWithCompilationDiagnostics(
+            string source,
+            bool requireCleanCompilation = true,
+            NullableContextOptions nullableContext = NullableContextOptions.Disable)
+    {
+        var (result, sources, compilationDiagnostics) = RunGeneratorCore(source, requireCleanCompilation, nullableContext);
+        return (result, Assert.Single(sources).SourceText.ToString(), compilationDiagnostics);
+    }
+
+    private static (GeneratorRunResult Result, ImmutableArray<GeneratedSourceResult> Sources, IReadOnlyList<Diagnostic> CompilationDiagnostics)
+        RunGeneratorCore(
             string source,
             bool requireCleanCompilation = true,
             NullableContextOptions nullableContext = NullableContextOptions.Disable)
@@ -1515,7 +1603,7 @@ public class BindingGeneratorTests
         if (requireCleanCompilation && !result.Diagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
             Assert.Empty(compilationDiagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
-        return (result, Assert.Single(result.GeneratedSources).SourceText.ToString(), compilationDiagnostics);
+        return (result, result.GeneratedSources, compilationDiagnostics);
     }
 
     private static IEnumerable<MetadataReference> GetPlatformReferences()
